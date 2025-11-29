@@ -1,260 +1,262 @@
 # MFP - Music For Programming Radio Player
 
-Reproductor ligero en Rust para la radio [Music For Programming](https://musicforprogramming.net/).
+Lightweight Rust player for [Music For Programming](https://musicforprogramming.net/) radio.
 
-## Características
+![mfp](./mfp.png)
 
-- **Streaming progresivo real** - Comienza a reproducir después de solo 512KB de buffer
-- **Barra de progreso interactiva** - Visualiza tiempo transcurrido, restante y porcentaje de reproducción
-- **Controles completos de reproducción** - Pausa/resume, volumen (+/-), silenciar (m), información (i)
-- **Sistema de descargas offline** - Descarga episodios para escuchar sin conexión
-- Sistema de favoritos persistente
-- Modo shuffle
-- Interfaz CLI simple y rápida
-- **Controles interactivos sin bloqueos** - Navegación instantánea entre episodios
-- Binario optimizado y ligero (3.6 MB)
-- **Reproducción de audio de bajo nivel** - Sin dependencias externas (no requiere mpv, ffmpeg, etc.)
-- Decodificación nativa de MP3, FLAC, WAV, Vorbis, AAC, ALAC y más formatos
-- **Descarga en background** - El audio se descarga mientras se reproduce
+## Features
 
-## Instalación
+- **Real progressive streaming** - Starts playing after only 512KB buffer
+- **Interactive progress bar** - Displays elapsed time, remaining time, and playback percentage
+- **Complete playback controls** - Pause/resume, volume (+/-), mute (m), info (i)
+- **Offline download system** - Download episodes to listen without connection
+- Persistent favorites system
+- Shuffle mode
+- Simple and fast CLI interface
+- **Non-blocking interactive controls** - Instant navigation between episodes
+- Optimized and lightweight binary (3.6 MB)
+- **Low-level audio playback** - No external dependencies (doesn't require mpv, ffmpeg, etc.)
+- Native decoding of MP3, FLAC, WAV, Vorbis, AAC, ALAC and more formats
+- **Background download** - Audio downloads while playing
+
+## Installation
 
 ```bash
 cargo build --release
 ```
 
-El binario optimizado estará en `target/release/mfp`.
+The optimized binary will be at `target/release/mfp`.
 
-### Instalación opcional en el sistema
+### Optional system installation
 
 ```bash
 sudo cp target/release/mfp /usr/local/bin/
 ```
 
-## Uso
+## Usage
 
-### Listar episodios
+### List episodes
 ```bash
 mfp list
 ```
 
-### Reproducir
+### Play
 ```bash
-# Desde el primer episodio
+# From the first episode
 mfp play
 
-# Episodio específico
+# Specific episode
 mfp play -e 75
 
-# Con shuffle
+# With shuffle
 mfp play -s
 
-# Solo favoritos
+# Favorites only
 mfp play -f
 
-# Favoritos con shuffle
+# Favorites with shuffle
 mfp play -f -s
 ```
 
-### Gestionar favoritos
+### Manage favorites
 ```bash
-# Listar favoritos
+# List favorites
 mfp fav -l
 
-# Agregar favorito
+# Add favorite
 mfp fav -a "Episode 75: Datassette"
 
-# Remover favorito
+# Remove favorite
 mfp fav -r "Episode 75: Datassette"
 ```
 
-### Gestionar descargas offline
+### Manage offline downloads
 ```bash
-# Descargar un episodio específico
+# Download a specific episode
 mfp download -e 75
 
-# Listar episodios descargados
+# List downloaded episodes
 mfp download --list
 
-# Ver espacio usado
+# View used space
 mfp download --size
 
-# Eliminar un episodio descargado
+# Delete a downloaded episode
 mfp download --delete "Episode 75"
 ```
 
-Los episodios se descargan a `~/.config/mfp/downloads/`
+Episodes are downloaded to `~/.config/mfp/downloads/`
 
-## Controles durante reproducción
+## Playback controls
 
-Durante la reproducción verás una barra de progreso interactiva:
+During playback you'll see an interactive progress bar:
 ```
 [03:45/58:23] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6% | -54:38 >
 ```
 
-Controles disponibles:
-- `n` o `next` - Siguiente episodio
-- `b` o `back` - Episodio anterior
-- `p` o `pause` - Pausar/reanudar reproducción
-- `+` o `up` - Aumentar volumen
-- `-` o `down` - Disminuir volumen
-- `m` o `mute` - Silenciar/desilenciar
-- `i` o `info` - Mostrar información del episodio actual
-- `s` o `shuffle` - Toggle shuffle
-- `f` o `favorite` - Toggle favorito del episodio actual
-- `d` o `download` - Descargar episodio actual para offline
-- `q` o `quit` - Salir
+Available controls:
+- `n` or `next` - Next episode
+- `b` or `back` - Previous episode
+- `p` or `pause` - Pause/resume playback
+- `+` or `up` - Increase volume
+- `-` or `down` - Decrease volume
+- `m` or `mute` - Mute/unmute
+- `i` or `info` - Show current episode information
+- `s` or `shuffle` - Toggle shuffle
+- `f` or `favorite` - Toggle current episode favorite
+- `d` or `download` - Download current episode for offline
+- `q` or `quit` - Exit
 
-## Arquitectura
+## Architecture
 
-El proyecto está organizado en módulos:
+The project is organized into modules:
 
-- `feed.rs` - Parser del RSS feed
-- `player.rs` - Motor de streaming y reproducción de audio de bajo nivel
-- `playlist.rs` - Gestión de playlist y shuffle
-- `favorites.rs` - Sistema de favoritos persistente
-- `downloader.rs` - Sistema de descargas offline
-- `main.rs` - CLI y lógica principal
+- `feed.rs` - RSS feed parser
+- `player.rs` - Low-level audio streaming and playback engine
+- `playlist.rs` - Playlist and shuffle management
+- `favorites.rs` - Persistent favorites system
+- `downloader.rs` - Offline download system
+- `main.rs` - CLI and main logic
 
-### Sistema de Streaming Progresivo
+### Progressive Streaming System
 
-El reproductor utiliza una arquitectura de **threads separados** para streaming eficiente:
+The player uses a **separate threads** architecture for efficient streaming:
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   Thread Principal                   │
-│                 (Interfaz de Usuario)                │
+│                   Main Thread                        │
+│                 (User Interface)                     │
 └─────────────────────────────────────────────────────┘
                           │
-                          ├──► Control de navegación (n/p/s/f/q)
+                          ├──► Navigation control (n/p/s/f/q)
                           │
          ┌────────────────┴────────────────┐
          │                                  │
 ┌────────▼─────────┐              ┌────────▼──────────┐
-│ Thread Descarga  │              │ Thread Reproducción│
+│ Download Thread  │              │  Playback Thread  │
 │                  │              │                    │
-│ • Descarga chunks│──── Canal ──►│ • Buffer 512KB    │
-│   de 32KB        │   (mpsc)     │ • Decodificación  │
+│ • Downloads 32KB │──── Channel ─►│ • 512KB Buffer   │
+│   chunks         │   (mpsc)     │ • Decoding        │
 │ • HTTP streaming │              │ • Rodio playback  │
-│ • Sin bloqueos   │              │                   │
+│ • Non-blocking   │              │                   │
 └──────────────────┘              └───────────────────┘
 ```
 
-**Características clave:**
-- **Buffer inicial**: 512KB (~1-2 segundos de espera)
-- **Chunks**: Descarga en bloques de 32KB
-- **Cancelación rápida**: Los threads se detienen sin bloquear
-- **Memoria eficiente**: Streaming continuo, no carga todo el archivo
+**Key features:**
+- **Initial buffer**: 512KB (~1-2 seconds wait)
+- **Chunks**: Downloads in 32KB blocks
+- **Fast cancellation**: Threads stop without blocking
+- **Memory efficient**: Continuous streaming, doesn't load entire file
 
-## Dependencias principales
+## Main dependencies
 
-- `rodio` + `symphonia` - Reproducción y decodificación de audio de bajo nivel (Rust puro)
-- `reqwest` - Cliente HTTP para obtener el RSS feed y streams de audio
-- `rss` - Parser del feed XML
-- `clap` - Framework para CLI con argumentos
-- `serde` + `serde_json` - Serialización de favoritos
-- `anyhow` - Manejo de errores mejorado
-- `rand` - Generación aleatoria para shuffle
-- `dirs` - Rutas de configuración del sistema
+- `rodio` + `symphonia` - Low-level audio playback and decoding (pure Rust)
+- `reqwest` - HTTP client for fetching RSS feed and audio streams
+- `rss` - XML feed parser
+- `clap` - CLI framework with arguments
+- `serde` + `serde_json` - Favorites serialization
+- `anyhow` - Improved error handling
+- `rand` - Random generation for shuffle
+- `dirs` - System configuration paths
 
-## Configuración
+## Configuration
 
-- Favoritos: `~/.config/mfp/favorites.json`
-- Descargas offline: `~/.config/mfp/downloads/`
+- Favorites: `~/.config/mfp/favorites.json`
+- Offline downloads: `~/.config/mfp/downloads/`
 
-## Optimizaciones de compilación
+## Build optimizations
 
-El proyecto utiliza optimizaciones agresivas en modo release:
+The project uses aggressive optimizations in release mode:
 
 ```toml
 [profile.release]
-opt-level = "z"      # Optimizar para tamaño
+opt-level = "z"      # Optimize for size
 lto = true           # Link-Time Optimization
-codegen-units = 1    # Mejor optimización
-strip = true         # Eliminar símbolos de debug
+codegen-units = 1    # Better optimization
+strip = true         # Remove debug symbols
 ```
 
-Esto resulta en un binario muy pequeño y eficiente.
+This results in a very small and efficient binary.
 
-## Cómo funciona
+## How it works
 
-### Flujo de reproducción
+### Playback flow
 
-1. **Obtención de episodios**: Se descarga y parsea el RSS feed de musicforprogramming.net
+1. **Episode fetching**: Downloads and parses the RSS feed from musicforprogramming.net
 
-2. **Gestión de playlist**: Los episodios se organizan en una lista que puede ser en orden o aleatoria
+2. **Playlist management**: Episodes are organized in a list that can be sequential or random
 
-3. **Streaming progresivo de audio**:
+3. **Progressive audio streaming**:
    ```
-   Usuario presiona Play
+   User presses Play
    ↓
-   📡 Conectando... (Thread de descarga inicia)
+   📡 Connecting... (Download thread starts)
    ↓
-   ⏳ Buffering... (Acumula 512KB inicial)
+   ⏳ Buffering... (Accumulates initial 512KB)
    ↓
-   ✓ (Decodifica MP3/FLAC/etc con Symphonia)
+   ✓ (Decodes MP3/FLAC/etc with Symphonia)
    ↓
-   ▶️ Reproducción inicia (Thread de reproducción)
+   ▶️ Playback starts (Playback thread)
    ↓
-   🎵 Audio se reproduce mientras continúa descargando en background
+   🎵 Audio plays while continuing to download in background
    ```
 
-4. **Sistema de cancelación sin bloqueos**:
-   - Cuando presionas `n` (next), el sink de audio se detiene instantáneamente
-   - Los threads de descarga y reproducción terminan automáticamente
-   - No hay esperas ni bloqueos - navegación inmediata
+4. **Non-blocking cancellation system**:
+   - When you press `n` (next), the audio sink stops instantly
+   - Download and playback threads terminate automatically
+   - No waits or blocks - immediate navigation
 
-5. **Persistencia**: Los favoritos se guardan en formato JSON en `~/.config/mfp/favorites.json`
+5. **Persistence**: Favorites are saved in JSON format at `~/.config/mfp/favorites.json`
 
-6. **Interactividad**: El programa lee comandos del usuario en tiempo real sin interferir con la reproducción
+6. **Interactivity**: The program reads user commands in real-time without interfering with playback
 
-## Solución de problemas
+## Troubleshooting
 
-### El comando mfp no se encuentra
-Asegúrate de que el binario esté en tu PATH o usa la ruta completa: `./target/release/mfp`
+### mfp command not found
+Make sure the binary is in your PATH or use the full path: `./target/release/mfp`
 
-### Error: "No se pudo inicializar el dispositivo de audio"
-- Verifica que tu sistema tenga un dispositivo de audio configurado
-- En Linux, asegúrate de que ALSA o PulseAudio estén funcionando
-- Revisa los permisos de acceso al dispositivo de audio
+### Error: "Could not initialize audio device"
+- Verify that your system has an audio device configured
+- On Linux, make sure ALSA or PulseAudio are running
+- Check audio device access permissions
 
-### Sin audio durante reproducción
-- Verifica el volumen de tu sistema
-- Comprueba que el dispositivo de audio correcto esté seleccionado
-- En Linux: Verifica que ALSA/PulseAudio estén configurados correctamente
-- Revisa la configuración de audio de tu sistema
+### No audio during playback
+- Check your system volume
+- Verify the correct audio device is selected
+- On Linux: Verify ALSA/PulseAudio are configured correctly
+- Review your system audio configuration
 
-### La navegación (n/p) se siente lenta
-- Esto es normal en conexiones lentas durante el buffering inicial
-- El sistema espera 512KB antes de comenzar a reproducir
-- Una vez iniciada la reproducción, la navegación es instantánea
+### Navigation (n/p) feels slow
+- This is normal on slow connections during initial buffering
+- The system waits for 512KB before starting playback
+- Once playback starts, navigation is instant
 
-### Error de red o descarga interrumpida
-- El reproductor maneja automáticamente errores de red
-- Si la descarga falla, simplemente presiona `n` para siguiente episodio
-- Los threads se limpian automáticamente sin dejar recursos colgados
+### Network error or interrupted download
+- The player automatically handles network errors
+- If download fails, simply press `n` for next episode
+- Threads clean up automatically without leaving resources hanging
 
-## Tecnologías utilizadas
+## Technologies used
 
-- **[Rust](https://www.rust-lang.org/)** - Lenguaje de programación
-- **[Rodio](https://github.com/RustAudio/rodio)** - Biblioteca de audio de alto nivel
-- **[Symphonia](https://github.com/pdeljanov/Symphonia)** - Decodificador de audio puro en Rust
-- **[Reqwest](https://github.com/seanmonstar/reqwest)** - Cliente HTTP para streaming
-- **[Clap](https://github.com/clap-rs/clap)** - Parser de argumentos CLI
+- **[Rust](https://www.rust-lang.org/)** - Programming language
+- **[Rodio](https://github.com/RustAudio/rodio)** - High-level audio library
+- **[Symphonia](https://github.com/pdeljanov/Symphonia)** - Pure Rust audio decoder
+- **[Reqwest](https://github.com/seanmonstar/reqwest)** - HTTP client for streaming
+- **[Clap](https://github.com/clap-rs/clap)** - CLI argument parser
 
-## Recursos
+## Resources
 
-- [Music For Programming](https://musicforprogramming.net/) - Sitio oficial de la radio
-- [RSS Feed](https://musicforprogramming.net/rss.xml) - Feed utilizado por el reproductor
+- [Music For Programming](https://musicforprogramming.net/) - Official radio site
+- [RSS Feed](https://musicforprogramming.net/rss.xml) - Feed used by the player
 
-## Rendimiento
+## Performance
 
-- **Binario**: 3.6 MB (release optimizado)
-- **Memoria**: ~10-20 MB durante reproducción (buffer de streaming)
-- **Inicio**: ~1-2 segundos (buffering inicial de 512KB)
-- **CPU**: Bajo consumo (~2-5% en sistemas modernos)
-- **Red**: Descarga progresiva, no requiere descargar el archivo completo
+- **Binary**: 3.6 MB (optimized release)
+- **Memory**: ~10-20 MB during playback (streaming buffer)
+- **Startup**: ~1-2 seconds (initial 512KB buffering)
+- **CPU**: Low consumption (~2-5% on modern systems)
+- **Network**: Progressive download, doesn't require downloading entire file
 
-## Licencia
+## License
 
 GNU General Public License v3.0
