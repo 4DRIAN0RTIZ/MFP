@@ -32,8 +32,8 @@ impl Downloader {
 
         println!("Downloading: {}", title);
 
-        let mut response = reqwest::blocking::get(url)
-            .context("No se pudo conectar al servidor")?;
+        let mut response =
+            reqwest::blocking::get(url).context("No se pudo conectar al servidor")?;
 
         if !response.status().is_success() {
             anyhow::bail!("Error HTTP: {}", response.status());
@@ -42,8 +42,7 @@ impl Downloader {
         let total_size = response.content_length();
 
         let temp_path = file_path.with_extension("tmp");
-        let mut file = File::create(&temp_path)
-            .context("No se pudo crear el archivo")?;
+        let mut file = File::create(&temp_path).context("No se pudo crear el archivo")?;
 
         let mut downloaded = 0u64;
         let mut buffer = vec![0u8; CHUNK_SIZE];
@@ -58,7 +57,8 @@ impl Downloader {
                     if downloaded % (1024 * 1024) == 0 {
                         if let Some(total) = total_size {
                             let percent = (downloaded as f64 / total as f64) * 100.0;
-                            print!("\r  Progress: {:.1}% ({:.1}/{:.1} MB)",
+                            print!(
+                                "\r  Progress: {:.1}% ({:.1}/{:.1} MB)",
                                 percent,
                                 downloaded as f64 / 1_048_576.0,
                                 total as f64 / 1_048_576.0
@@ -74,8 +74,10 @@ impl Downloader {
             }
         }
 
-        println!("\rDownload complete: {:.2} MB                    ",
-            downloaded as f64 / 1_048_576.0);
+        println!(
+            "\rDownload complete: {:.2} MB                    ",
+            downloaded as f64 / 1_048_576.0
+        );
 
         fs::rename(&temp_path, &file_path)?;
 

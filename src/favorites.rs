@@ -15,8 +15,7 @@ impl Favorites {
             .context("Failed to find config directory")?
             .join("mfp");
 
-        fs::create_dir_all(&config_dir)
-            .context("Failed to create config directory")?;
+        fs::create_dir_all(&config_dir).context("Failed to create config directory")?;
 
         Ok(config_dir.join("favorites.json"))
     }
@@ -28,20 +27,17 @@ impl Favorites {
             return Ok(Self::default());
         }
 
-        let content = fs::read_to_string(&path)
-            .context("Failed to read favorites file")?;
+        let content = fs::read_to_string(&path).context("Failed to read favorites file")?;
 
-        serde_json::from_str(&content)
-            .context("Failed to parse favorites file")
+        serde_json::from_str(&content).context("Failed to parse favorites file")
     }
 
     pub fn save(&self) -> Result<()> {
         let path = Self::config_path()?;
-        let content = serde_json::to_string_pretty(self)
-            .context("Failed to serialize favorites")?;
+        let content =
+            serde_json::to_string_pretty(self).context("Failed to serialize favorites")?;
 
-        fs::write(&path, content)
-            .context("Failed to write favorites file")
+        fs::write(&path, content).context("Failed to write favorites file")
     }
 
     pub fn add(&mut self, title: String) -> bool {

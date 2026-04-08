@@ -7,7 +7,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 const BUFFER_SIZE: usize = 512 * 1024; // Initial buffer: 512 KB
-const CHUNK_SIZE: usize = 32 * 1024;   // Chunk size: 32 KB
+const CHUNK_SIZE: usize = 32 * 1024; // Chunk size: 32 KB
 
 struct StreamingBuffer {
     buffer: Arc<Mutex<Vec<u8>>>,
@@ -88,8 +88,9 @@ pub struct Player {
 
 impl Player {
     pub fn new() -> Result<Self> {
-        let (stream, stream_handle) = OutputStream::try_default()
-            .context("No se pudo inicializar el dispositivo de audio. Verifica tu configuración de audio.")?;
+        let (stream, stream_handle) = OutputStream::try_default().context(
+            "No se pudo inicializar el dispositivo de audio. Verifica tu configuración de audio.",
+        )?;
 
         Ok(Player {
             _stream: stream,
@@ -113,8 +114,9 @@ impl Player {
         use std::io::Write;
         std::io::stdout().flush().ok();
 
-        let sink = Arc::new(Sink::try_new(&self.stream_handle)
-            .context("No se pudo crear el sink de audio")?);
+        let sink = Arc::new(
+            Sink::try_new(&self.stream_handle).context("No se pudo crear el sink de audio")?,
+        );
 
         *self.sink.lock().unwrap() = Some(Arc::clone(&sink));
         *self.is_paused.lock().unwrap() = false;
@@ -141,9 +143,13 @@ impl Player {
         Ok(())
     }
 
-    fn download_stream(url: &str, tx: Sender<Vec<u8>>, download_complete: Arc<Mutex<bool>>) -> Result<()> {
-        let mut response = reqwest::blocking::get(url)
-            .context("No se pudo conectar al servidor")?;
+    fn download_stream(
+        url: &str,
+        tx: Sender<Vec<u8>>,
+        download_complete: Arc<Mutex<bool>>,
+    ) -> Result<()> {
+        let mut response =
+            reqwest::blocking::get(url).context("No se pudo conectar al servidor")?;
 
         if !response.status().is_success() {
             anyhow::bail!("Error HTTP: {}", response.status());
@@ -168,7 +174,11 @@ impl Player {
         Ok(())
     }
 
-    fn play_stream(rx: Receiver<Vec<u8>>, sink: &Sink, download_complete: Arc<Mutex<bool>>) -> Result<()> {
+    fn play_stream(
+        rx: Receiver<Vec<u8>>,
+        sink: &Sink,
+        download_complete: Arc<Mutex<bool>>,
+    ) -> Result<()> {
         let mut initial_buffer = Vec::new();
 
         print!(" buffering...");
@@ -203,8 +213,7 @@ impl Player {
         let streaming_buffer = StreamingBuffer::new(buffer_arc, download_complete);
         let buf_reader = BufReader::new(streaming_buffer);
 
-        let source = Decoder::new(buf_reader)
-            .context("No se pudo decodificar el audio")?;
+        let source = Decoder::new(buf_reader).context("No se pudo decodificar el audio")?;
 
         sink.append(source);
         sink.sleep_until_end();

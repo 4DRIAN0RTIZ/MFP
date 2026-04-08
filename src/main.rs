@@ -1,6 +1,7 @@
 mod downloader;
 mod favorites;
 mod feed;
+mod mpris;
 mod player;
 mod playlist;
 
@@ -15,6 +16,7 @@ use favorites::Favorites;
 use feed::Feed;
 use player::Player;
 use playlist::Playlist;
+use crate::mpris::{MprisController, MprisCommand, PlaybackStatus};
 use std::io::{self, Write};
 use std::time::Duration;
 
@@ -76,13 +78,18 @@ fn main() -> Result<()> {
 
     match cli.command {
         Some(Commands::List) => list_episodes()?,
-        Some(Commands::Play { episode, shuffle, favorites: fav_mode }) => {
-            play_radio(episode, shuffle, fav_mode)?
-        }
+        Some(Commands::Play {
+            episode,
+            shuffle,
+            favorites: fav_mode,
+        }) => play_radio(episode, shuffle, fav_mode)?,
         Some(Commands::Fav { add, remove, list }) => manage_favorites(add, remove, list)?,
-        Some(Commands::Download { episode, list, delete, size }) => {
-            manage_downloads(episode, list, delete, size)?
-        }
+        Some(Commands::Download {
+            episode,
+            list,
+            delete,
+            size,
+        }) => manage_downloads(episode, list, delete, size)?,
         None => interactive_mode()?,
     }
 
@@ -157,6 +164,10 @@ fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bool) -> Resu
 
     let player = Player::new()?;
 
+    // MPRIS integration
+    let mpris = MprisController::new()?;
+    let mpris_cmd_rx = mpris.command_receiver();
+
     loop {
         let (episode_title, episode_duration, episode_url) = match playlist.current() {
             Some(ep) => (ep.title.clone(), ep.duration.clone(), ep.audio_url.clone()),
@@ -166,9 +177,28 @@ fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bool) -> Resu
             }
         };
 
+        // Update MPRIS metadata for new episode
+        let total_seconds = player::parse_duration(&episode_duration).unwrap_or(0);
+        if let Err(e) = mpris.update_metadata(episode_title.clone(), total_seconds) {
+            eprintln!("Failed to update MPRIS metadata: {}", e);
+        }
+        if let Err(e) = mpris.update_playback_status(PlaybackStatus::Playing) {
+            eprintln!("Failed to update MPRIS playback status: {}", e);
+        }
+        if let Err(e) = mpris.update_shuffle(playlist.is_shuffled()) {
+            eprintln!("Failed to update MPRIS shuffle: {}", e);
+        }
+        if let Err(e) = mpris.update_navigation(true, true) {
+            eprintln!("Failed to update MPRIS navigation: {}", e);
+        }
+
         let is_fav = favorites.is_favorite(&episode_title);
         println!("\n{} {}", if is_fav { "*" } else { ">" }, episode_title);
-        println!("Duración: {} | Shuffle: {}\n", episode_duration, if playlist.is_shuffled() { "ON" } else { "OFF" });
+        println!(
+            "Duración: {} | Shuffle: {}\n",
+            episode_duration,
+            if playlist.is_shuffled() { "ON" } else { "OFF" }
+        );
 
         player.play(&episode_url)?;
 
@@ -184,6 +214,39 @@ fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bool) -> Resu
         let mut command_buffer = String::new();
 
         loop {
+            // Process MPRIS commands
+            if let Ok(cmd) = mpris_cmd_rx.try_recv() {
+                match cmd {
+                    MprisCommand::PlayPause => {
+                        if player.is_paused() {
+                            player.resume();
+                            let _ = mpris.update_playback_status(PlaybackStatus::Playing);
+                        } else {
+                            player.pause();
+                            let _ = mpris.update_playback_status(PlaybackStatus::Paused);
+                        }
+                    }
+                    MprisCommand::Next => {
+                        player.stop();
+                        playlist.next();
+                        break; // exit inner loop to play next episode
+                    }
+                    MprisCommand::Previous => {
+                        player.stop();
+                        playlist.previous();
+                        break;
+                    }
+                    MprisCommand::SetVolume(vol) => {
+                        player.set_volume(vol);
+                        let _ = mpris.update_volume(vol);
+                    }
+                    MprisCommand::Quit => {
+                        player.stop();
+                        disable_raw_mode()?;
+                        return Ok(());
+                    }
+                }
+            }
             let elapsed = player.elapsed_seconds();
             let remaining = total_seconds.saturating_sub(elapsed);
 
@@ -201,8 +264,10 @@ fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bool) -> Resu
             let filled = ((percent as usize * bar_length) / 100).min(bar_length);
             let bar: String = "━".repeat(filled) + &"─".repeat(bar_length - filled);
 
-            print!("\r[{}/{}] {} {}% | -{} > {}",
-                elapsed_str, total_str, bar, percent, remaining_str, command_buffer);
+            print!(
+                "\r[{}/{}] {} {}% | -{} > {}",
+                elapsed_str, total_str, bar, percent, remaining_str, command_buffer
+            );
             io::stdout().flush()?;
 
             if event::poll(Duration::from_millis(100))? {
@@ -229,6 +294,11 @@ fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bool) -> Resu
                                 }
                                 "p" | "pause" | "play" => {
                                     print!("\r{}\r", " ".repeat(120));
+                                    let new_status = if player.is_paused() {
+                                        PlaybackStatus::Playing
+                                    } else {
+                                        PlaybackStatus::Paused
+                                    };
                                     if player.is_paused() {
                                         player.resume();
                                         println!("Playing");
@@ -236,6 +306,7 @@ fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bool) -> Resu
                                         player.pause();
                                         println!("Paused");
                                     }
+                                    mpris.update_playback_status(new_status).ok();
                                     false
                                 }
                                 "+" | "up" => {
@@ -243,6 +314,7 @@ fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bool) -> Resu
                                     let current_vol = player.volume();
                                     let new_vol = (current_vol + 0.1).min(2.0);
                                     player.set_volume(new_vol);
+                                    mpris.update_volume(new_vol).ok();
                                     println!("Volume: {:.0}%", new_vol * 100.0);
                                     false
                                 }
@@ -251,17 +323,19 @@ fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bool) -> Resu
                                     let current_vol = player.volume();
                                     let new_vol = (current_vol - 0.1).max(0.0);
                                     player.set_volume(new_vol);
+                                    mpris.update_volume(new_vol).ok();
                                     println!("Volume: {:.0}%", new_vol * 100.0);
                                     false
                                 }
                                 "m" | "mute" => {
                                     print!("\r{}\r", " ".repeat(120));
                                     let current_vol = player.volume();
+                                    let new_vol = if current_vol > 0.0 { 0.0 } else { 1.0 };
+                                    player.set_volume(new_vol);
+                                    mpris.update_volume(new_vol).ok();
                                     if current_vol > 0.0 {
-                                        player.set_volume(0.0);
                                         println!("Muted");
                                     } else {
-                                        player.set_volume(1.0);
                                         println!("Volume: 100%");
                                     }
                                     false
@@ -271,27 +345,56 @@ fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bool) -> Resu
                                     println!("\nEpisode: {}", episode_title);
                                     println!("Duration: {}", episode_duration);
                                     println!("Volume: {:.0}%", player.volume() * 100.0);
-                                    println!("Status: {}", if player.is_paused() { "Paused" } else { "Playing" });
-                                    println!("Shuffle: {}", if playlist.is_shuffled() { "ON" } else { "OFF" });
-                                    println!("Favorite: {}\n", if favorites.is_favorite(&episode_title) { "Yes" } else { "No" });
+                                    println!(
+                                        "Status: {}",
+                                        if player.is_paused() {
+                                            "Paused"
+                                        } else {
+                                            "Playing"
+                                        }
+                                    );
+                                    println!(
+                                        "Shuffle: {}",
+                                        if playlist.is_shuffled() { "ON" } else { "OFF" }
+                                    );
+                                    println!(
+                                        "Favorite: {}\n",
+                                        if favorites.is_favorite(&episode_title) {
+                                            "Yes"
+                                        } else {
+                                            "No"
+                                        }
+                                    );
                                     false
                                 }
                                 "s" | "shuffle" => {
                                     print!("\r{}\r", " ".repeat(120));
                                     playlist.toggle_shuffle();
-                                    println!("Shuffle: {}", if playlist.is_shuffled() { "ON" } else { "OFF" });
+                                    mpris.update_shuffle(playlist.is_shuffled()).ok();
+                                    println!(
+                                        "Shuffle: {}",
+                                        if playlist.is_shuffled() { "ON" } else { "OFF" }
+                                    );
                                     false
                                 }
                                 "f" | "fav" | "favorite" => {
                                     print!("\r{}\r", " ".repeat(120));
                                     let is_now_fav = favorites.toggle(episode_title.clone());
-                                    println!("{}", if is_now_fav { "Added to favorites" } else { "Removed from favorites" });
+                                    println!(
+                                        "{}",
+                                        if is_now_fav {
+                                            "Added to favorites"
+                                        } else {
+                                            "Removed from favorites"
+                                        }
+                                    );
                                     false
                                 }
                                 "d" | "download" => {
                                     print!("\r{}\r", " ".repeat(120));
                                     println!("\nDownloading episode for offline...");
-                                    match downloader.download_episode(&episode_title, &episode_url) {
+                                    match downloader.download_episode(&episode_title, &episode_url)
+                                    {
                                         Ok(_) => println!("Episode downloaded\n"),
                                         Err(e) => println!("Error: {}\n", e),
                                     }
@@ -369,7 +472,12 @@ fn manage_favorites(add: Option<String>, remove: Option<String>, list: bool) -> 
     Ok(())
 }
 
-fn manage_downloads(episode: Option<usize>, list: bool, delete: Option<String>, size: bool) -> Result<()> {
+fn manage_downloads(
+    episode: Option<usize>,
+    list: bool,
+    delete: Option<String>,
+    size: bool,
+) -> Result<()> {
     let downloader = Downloader::new()?;
 
     if size {
@@ -405,7 +513,11 @@ fn manage_downloads(episode: Option<usize>, list: bool, delete: Option<String>, 
         let feed = Feed::fetch()?;
 
         let target_title = format!("Episode {}", ep_num);
-        if let Some(ep) = feed.episodes().iter().find(|e| e.title.contains(&target_title)) {
+        if let Some(ep) = feed
+            .episodes()
+            .iter()
+            .find(|e| e.title.contains(&target_title))
+        {
             downloader.download_episode(&ep.title, &ep.audio_url)?;
         } else {
             println!("Episode {} not found", ep_num);
