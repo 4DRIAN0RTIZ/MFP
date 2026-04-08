@@ -29,8 +29,7 @@ impl Feed {
             .bytes()
             .context("Failed to read RSS content")?;
 
-        let channel = rss::Channel::read_from(&content[..])
-            .context("Failed to parse RSS feed")?;
+        let channel = rss::Channel::read_from(&content[..]).context("Failed to parse RSS feed")?;
 
         let episodes = channel
             .items()
@@ -39,7 +38,11 @@ impl Feed {
                 Some(Episode {
                     title: item.title()?.to_string(),
                     audio_url: item.enclosure()?.url().to_string(),
-                    duration: item.itunes_ext()?.duration().unwrap_or("Unknown").to_string(),
+                    duration: item
+                        .itunes_ext()?
+                        .duration()
+                        .unwrap_or("Unknown")
+                        .to_string(),
                     pub_date: item.pub_date().unwrap_or("Unknown").to_string(),
                     description: item.description().unwrap_or("").to_string(),
                 })
