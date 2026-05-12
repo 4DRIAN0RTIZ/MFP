@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MFP — Music For Programming Player</title>
+  <meta name="description" content="Lightweight terminal player for Music For Programming radio. Pure Rust, no external dependencies." />
+  <style>
+    :root {
+      --bg:        #0d0d0d;
+      --surface:   #141414;
+      --border:    #222;
+      --accent:    #7fff7f;
+      --accent2:   #4ec9b0;
+      --muted:     #555;
+      --text:      #ccc;
+      --text-hi:   #eee;
+      --mono:      "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+      --sans:      system-ui, -apple-system, sans-serif;
+      --radius:    6px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Layout ── */
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 10;
+      border-bottom: 1px solid var(--border);
+      background: rgba(13,13,13,.92);
+      backdrop-filter: blur(8px);
+    }
+    nav .inner {
+      max-width: 860px; margin: 0 auto; padding: 0 24px;
+      height: 52px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px;
+    }
+    .nav-brand {
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--accent);
+      font-weight: 700;
+      letter-spacing: .05em;
+    }
+    .nav-links { display: flex; gap: 20px; }
+    .nav-links a {
+      color: var(--muted);
+      font-size: 13px;
+      transition: color .15s;
+    }
+    .nav-links a:hover { color: var(--text-hi); text-decoration: none; }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 96px 0 72px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      border: 1px solid #2a4a2a;
+      background: #0d1f0d;
+      border-radius: 999px;
+      padding: 4px 12px;
+      margin-bottom: 28px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .hero h1 {
+      font-family: var(--mono);
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      color: var(--text-hi);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      line-height: 1.1;
+      margin-bottom: 20px;
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero p {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 480px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+    .hero-actions {
+      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      transition: all .15s;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #0d0d0d;
+      font-weight: 700;
+    }
+    .btn-primary:hover { background: #9aff9a; text-decoration: none; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { border-color: #444; color: var(--text-hi); text-decoration: none; }
+
+    /* ── Screenshot ── */
+    .screenshot-wrap {
+      margin: 64px 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .screenshot-bar {
+      height: 36px;
+      background: #1a1a1a;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 14px;
+      gap: 7px;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red   { background: #ff5f57; }
+    .dot-yellow{ background: #ffbd2e; }
+    .dot-green { background: #28c840; }
+    .screenshot-bar span {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .screenshot-wrap img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* ── Section ── */
+    section { padding: 64px 0; }
+    .section-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    h2 {
+      font-size: 1.6rem;
+      color: var(--text-hi);
+      font-weight: 700;
+      margin-bottom: 40px;
+      letter-spacing: -.01em;
+    }
+
+    /* ── Features ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      transition: border-color .15s;
+    }
+    .feature-card:hover { border-color: #333; }
+    .feature-icon {
+      font-size: 1.4rem;
+      margin-bottom: 12px;
+      display: block;
+    }
+    .feature-card h3 {
+      font-size: 14px;
+      color: var(--text-hi);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .feature-card p {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    /* ── Install ── */
+    .install-section { border-top: 1px solid var(--border); }
+    .install-steps { display: flex; flex-direction: column; gap: 20px; }
+    .install-step { display: flex; gap: 16px; align-items: flex-start; }
+    .step-num {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent);
+      background: #0d1f0d;
+      border: 1px solid #2a4a2a;
+      border-radius: var(--radius);
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .step-body h3 {
+      font-size: 14px;
+      color: var(--text-hi);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .step-body p { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+
+    /* ── Code blocks ── */
+    .code-block {
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .code-block code { white-space: pre; flex: 1; }
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all .15s;
+    }
+    .copy-btn:hover { border-color: #444; color: var(--text); }
+    .copy-btn.copied { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Controls ── */
+    .controls-section { border-top: 1px solid var(--border); }
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .kbd {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-bottom: 2px solid #333;
+      border-radius: 4px;
+      padding: 2px 8px;
+      color: var(--accent2);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .control-row span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ── Usage ── */
+    .usage-section { border-top: 1px solid var(--border); }
+    .usage-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .usage-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .usage-card-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-hi);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .usage-card pre {
+      padding: 16px 18px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.7;
+      overflow-x: auto;
+    }
+    .usage-card pre .cmd { color: var(--accent); }
+    .usage-card pre .flag { color: var(--accent2); }
+    .usage-card pre .comment { color: var(--muted); }
+
+    /* ── Polybar ── */
+    .polybar-section { border-top: 1px solid var(--border); }
+    .polybar-steps { display: flex; flex-direction: column; gap: 28px; }
+    .prereq-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: var(--mono); font-size: 12px;
+      background: #111; border: 1px solid var(--border);
+      border-radius: 999px; padding: 4px 14px;
+      color: var(--accent2);
+    }
+    .mouse-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .mouse-table th {
+      text-align: left; font-size: 11px; font-family: var(--mono);
+      color: var(--muted); letter-spacing: .08em; text-transform: uppercase;
+      padding: 0 12px 10px; border-bottom: 1px solid var(--border);
+    }
+    .mouse-table td {
+      padding: 10px 12px; font-size: 13px; color: var(--text);
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .mouse-table tr:last-child td { border-bottom: none; }
+    .mouse-table td:first-child { font-family: var(--mono); color: var(--accent2); font-size: 12px; }
+    .polybar-preview {
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 18px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: #888;
+      display: flex; align-items: center; gap: 12px;
+      margin-top: 12px;
+    }
+    .polybar-preview .bar-label { color: var(--accent); font-size: 13px; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 36px 0;
+      text-align: center;
+    }
+    footer p { font-size: 13px; color: var(--muted); line-height: 1.8; }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--text); }
+
+    /* ── Divider ── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    /* ── Responsive ── */
+    @media (max-width: 560px) {
+      .hero { padding: 64px 0 48px; }
+      .hero h1 { font-size: 2rem; }
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="inner">
+    <span class="nav-brand">mfp</span>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+      <a href="#usage">Usage</a>
+      <a href="#controls">Controls</a>
+      <a href="#polybar">Polybar</a>
+      <a href="https://github.com/4DRIAN0RTIZ/mfp">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="container">
+  <div class="hero">
+    <div class="hero-badge">Rust · GPL-3.0 · Linux &amp; macOS</div>
+    <h1><span>mfp</span> — Music For<br>Programming Player</h1>
+    <p>Lightweight terminal player for <a href="https://musicforprogramming.net/" target="_blank" rel="noopener">musicforprogramming.net</a>. Streams directly, no external dependencies, MPRIS support.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="#install">Get started</a>
+      <a class="btn btn-ghost" href="https://github.com/4DRIAN0RTIZ/mfp" target="_blank" rel="noopener">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+
+  <!-- Screenshot -->
+  <div class="screenshot-wrap">
+    <div class="screenshot-bar">
+      <span class="dot dot-red"></span>
+      <span class="dot dot-yellow"></span>
+      <span class="dot dot-green"></span>
+      <span>mfp play</span>
+    </div>
+    <img src="mfp.png" alt="MFP terminal player screenshot" />
+  </div>
+</div>
+
+<!-- Features -->
+<section id="features">
+  <div class="container">
+    <div class="section-label">What it does</div>
+    <h2>Everything in the terminal</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <span class="feature-icon">⚡</span>
+        <h3>Progressive Streaming</h3>
+        <p>Starts playing after a 512 KB buffer — no waiting for the full episode to download.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🎛</span>
+        <h3>Full Playback Controls</h3>
+        <p>Play/pause, volume, mute, next, previous, shuffle — all from the keyboard while it runs.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📡</span>
+        <h3>MPRIS Integration</h3>
+        <p>Exposes D-Bus MPRIS so Polybar, KDE, GNOME, and any media client can see and control it.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">💾</span>
+        <h3>Offline Downloads</h3>
+        <p>Download episodes to <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">~/.config/mfp/downloads/</code> and listen without a connection.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">⭐</span>
+        <h3>Favorites</h3>
+        <p>Mark episodes as favorites and play only those, with or without shuffle.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📦</span>
+        <h3>Zero External Deps</h3>
+        <p>Pure Rust audio pipeline — no mpv, no ffmpeg. MP3, FLAC, AAC, ALAC, Vorbis, WAV.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- Install -->
+<section id="install" class="install-section">
+  <div class="container">
+    <div class="section-label">Installation</div>
+    <h2>Get it running</h2>
+    <div class="install-steps">
+
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h3>Clone &amp; build</h3>
+          <p>Requires Rust stable. The release profile strips debug info and optimizes for size (~3.6 MB).</p>
+          <div class="code-block">
+            <code>git clone https://github.com/4DRIAN0RTIZ/mfp &amp;&amp; cd mfp
+cargo build --release</code>
+            <button class="copy-btn" onclick="copy(this, 'git clone https://github.com/4DRIAN0RTIZ/mfp && cd mfp\ncargo build --release')">copy</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="install-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h3>Add to PATH (optional)</h3>
+          <p>Copy the binary system-wide so you can run <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">mfp</code> from anywhere.</p>
+          <div class="code-block">
+            <code>sudo cp target/release/mfp /usr/local/bin/</code>
+            <button class="copy-btn" onclick="copy(this, 'sudo cp target/release/mfp /usr/local/bin/')">copy</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="install-step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h3>Play</h3>
+          <div class="code-block">
+            <code>mfp play</code>
+            <button class="copy-btn" onclick="copy(this, 'mfp play')">copy</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- Usage -->
+<section id="usage" class="usage-section">
+  <div class="container">
+    <div class="section-label">Commands</div>
+    <h2>Quick reference</h2>
+    <div class="usage-grid">
+
+      <div class="usage-card">
+        <div class="usage-card-header">▶ Play</div>
+        <pre><span class="cmd">mfp play</span>                  <span class="comment"># first episode</span>
+<span class="cmd">mfp play</span> <span class="flag">-e 75</span>           <span class="comment"># specific episode</span>
+<span class="cmd">mfp play</span> <span class="flag">-s</span>              <span class="comment"># shuffle</span>
+<span class="cmd">mfp play</span> <span class="flag">-f</span>              <span class="comment"># favorites only</span>
+<span class="cmd">mfp play</span> <span class="flag">-f -s</span>           <span class="comment"># favorites + shuffle</span></pre>
+      </div>
+
+      <div class="usage-card">
+        <div class="usage-card-header">★ Favorites</div>
+        <pre><span class="cmd">mfp fav</span> <span class="flag">-l</span>              <span class="comment"># list</span>
+<span class="cmd">mfp fav</span> <span class="flag">-a</span> "Episode 75" <span class="comment"># add</span>
+<span class="cmd">mfp fav</span> <span class="flag">-r</span> "Episode 75" <span class="comment"># remove</span></pre>
+      </div>
+
+      <div class="usage-card">
+        <div class="usage-card-header">⬇ Downloads</div>
+        <pre><span class="cmd">mfp download</span> <span class="flag">-e 75</span>       <span class="comment"># download ep</span>
+<span class="cmd">mfp download</span> <span class="flag">--list</span>      <span class="comment"># list cached</span>
+<span class="cmd">mfp download</span> <span class="flag">--size</span>      <span class="comment"># disk usage</span>
+<span class="cmd">mfp download</span> <span class="flag">--delete</span> … <span class="comment"># remove ep</span></pre>
+      </div>
+
+      <div class="usage-card">
+        <div class="usage-card-header">≡ List</div>
+        <pre><span class="cmd">mfp list</span>                  <span class="comment"># all episodes</span></pre>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- Controls -->
+<section id="controls" class="controls-section">
+  <div class="container">
+    <div class="section-label">Keyboard shortcuts</div>
+    <h2>During playback</h2>
+    <div class="controls-grid">
+      <div class="control-row"><span class="kbd">n</span><span>Next episode</span></div>
+      <div class="control-row"><span class="kbd">b</span><span>Previous episode</span></div>
+      <div class="control-row"><span class="kbd">p</span><span>Pause / resume</span></div>
+      <div class="control-row"><span class="kbd">+</span><span>Volume up</span></div>
+      <div class="control-row"><span class="kbd">-</span><span>Volume down</span></div>
+      <div class="control-row"><span class="kbd">m</span><span>Mute / unmute</span></div>
+      <div class="control-row"><span class="kbd">s</span><span>Toggle shuffle</span></div>
+      <div class="control-row"><span class="kbd">f</span><span>Toggle favorite</span></div>
+      <div class="control-row"><span class="kbd">d</span><span>Download episode</span></div>
+      <div class="control-row"><span class="kbd">i</span><span>Episode info</span></div>
+      <div class="control-row"><span class="kbd">q</span><span>Quit</span></div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- Polybar -->
+<section id="polybar" class="polybar-section">
+  <div class="container">
+    <div class="section-label">Integrations</div>
+    <h2>MPRIS &amp; Polybar</h2>
+
+    <p style="font-size:13px;color:var(--muted);margin-bottom:36px;max-width:600px">
+      MFP exposes a D-Bus MPRIS interface as <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">org.mpris.MediaPlayer2.mfp</code>.
+      Any MPRIS-compatible client can control it — Polybar, Waybar, KDE, GNOME Shell, playerctl, AGS, eww, and more.
+    </p>
+
+    <!-- Generic MPRIS clients -->
+    <div style="margin-bottom:40px">
+      <h3 style="font-size:14px;color:var(--text-hi);margin-bottom:16px;font-weight:600">Any MPRIS client</h3>
+      <div class="features-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:20px">
+        <div class="feature-card" style="padding:16px">
+          <span class="feature-icon" style="font-size:1rem;margin-bottom:8px">🎵</span>
+          <h3 style="font-size:13px">KDE / Plasma</h3>
+          <p style="font-size:12px">Media widget picks it up automatically.</p>
+        </div>
+        <div class="feature-card" style="padding:16px">
+          <span class="feature-icon" style="font-size:1rem;margin-bottom:8px">🐚</span>
+          <h3 style="font-size:13px">GNOME Shell</h3>
+          <p style="font-size:12px">System media controls in the top bar.</p>
+        </div>
+        <div class="feature-card" style="padding:16px">
+          <span class="feature-icon" style="font-size:1rem;margin-bottom:8px">📊</span>
+          <h3 style="font-size:13px">Waybar</h3>
+          <p style="font-size:12px">Use the built-in <code style="font-size:11px">mpris</code> module.</p>
+        </div>
+        <div class="feature-card" style="padding:16px">
+          <span class="feature-icon" style="font-size:1rem;margin-bottom:8px">⌨️</span>
+          <h3 style="font-size:13px">playerctl</h3>
+          <p style="font-size:12px">Full CLI control from any script.</p>
+        </div>
+      </div>
+      <div class="usage-card">
+        <div class="usage-card-header">playerctl — quick reference</div>
+        <pre><span class="comment"># target mfp specifically</span>
+<span class="cmd">playerctl</span> <span class="flag">--player=org.mpris.MediaPlayer2.mfp</span> play-pause
+<span class="cmd">playerctl</span> <span class="flag">--player=org.mpris.MediaPlayer2.mfp</span> next
+<span class="cmd">playerctl</span> <span class="flag">--player=org.mpris.MediaPlayer2.mfp</span> previous
+<span class="cmd">playerctl</span> <span class="flag">--player=org.mpris.MediaPlayer2.mfp</span> volume 0.1+
+<span class="cmd">playerctl</span> <span class="flag">--player=org.mpris.MediaPlayer2.mfp</span> metadata xesam:title</pre>
+      </div>
+    </div>
+
+    <h3 style="font-size:14px;color:var(--text-hi);margin-bottom:20px;font-weight:600">Polybar module</h3>
+
+    <p style="font-size:13px;color:var(--muted);margin-bottom:28px;max-width:560px">
+      Always-visible module — shows current episode while playing, stays in the bar when idle.
+      Controls via mouse clicks, no extra daemon needed.
+    </p>
+
+    <div class="prereq-chips">
+      <span class="chip">playerctl</span>
+      <span class="chip">rofi <span style="color:var(--muted)">(optional — context menu)</span></span>
+    </div>
+
+    <div class="polybar-steps">
+
+      <!-- Step 1 -->
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h3>Copy scripts</h3>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Two scripts handle status polling and click actions.</p>
+          <div class="code-block" style="flex-direction:column;align-items:flex-start;gap:6px">
+            <code style="white-space:pre">mkdir -p ~/.config/polybar/scripts
+curl -sLo ~/.config/polybar/scripts/mfp-status-v2.sh \
+  https://raw.githubusercontent.com/4DRIAN0RTIZ/mfp/main/contrib/polybar/scripts/mfp-status-v2.sh
+curl -sLo ~/.config/polybar/scripts/mfp-action.sh \
+  https://raw.githubusercontent.com/4DRIAN0RTIZ/mfp/main/contrib/polybar/scripts/mfp-action.sh
+chmod +x ~/.config/polybar/scripts/mfp-*.sh</code>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="install-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h3>Add module to polybar config</h3>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Paste this block into your <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">config.ini</code>, then add <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">mpris</code> to <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">modules-left</code> / <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">modules-right</code>.</p>
+          <div class="usage-card">
+            <div class="usage-card-header">config.ini</div>
+            <pre style="color:var(--text)">[module/mpris]
+<span class="flag">type</span>         = custom/script
+<span class="flag">exec</span>         = ~/.config/polybar/scripts/mfp-status-v2.sh
+<span class="flag">interval</span>     = 2
+<span class="flag">format</span>       = &lt;label&gt;
+<span class="flag">label</span>        = %output%
+<span class="flag">click-left</span>   = ~/.config/polybar/scripts/mfp-action.sh left
+<span class="flag">click-right</span>  = ~/.config/polybar/scripts/mfp-action.sh right
+<span class="flag">click-middle</span> = ~/.config/polybar/scripts/mfp-action.sh middle
+<span class="flag">scroll-up</span>    = ~/.config/polybar/scripts/mfp-action.sh scroll-up
+<span class="flag">scroll-down</span>  = ~/.config/polybar/scripts/mfp-action.sh scroll-down</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mouse actions -->
+      <div class="install-step">
+        <div class="step-num" style="background:transparent;border-color:var(--border);color:var(--muted)">?</div>
+        <div class="step-body">
+          <h3>Mouse actions</h3>
+          <div class="usage-card" style="margin-top:0">
+            <table class="mouse-table">
+              <thead>
+                <tr><th>Button</th><th>MFP running</th><th>MFP stopped</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Left click</td><td>Play / Pause</td><td>Launch mfp play</td></tr>
+                <tr><td>Right click</td><td>rofi context menu</td><td>rofi → Start option</td></tr>
+                <tr><td>Middle click</td><td>Next episode</td><td>Launch with shuffle</td></tr>
+                <tr><td>Scroll up</td><td>Volume +5%</td><td>—</td></tr>
+                <tr><td>Scroll down</td><td>Volume −5%</td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="polybar-preview">
+            <span style="color:var(--muted)">modules-right =</span>
+            <span>bspwm</span>
+            <span class="bar-label">mpris</span>
+            <span>cpu memory network battery</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Waybar -->
+    <div style="margin-top:40px">
+      <h3 style="font-size:14px;color:var(--text-hi);margin-bottom:16px;font-weight:600">Waybar module</h3>
+      <div class="usage-card">
+        <div class="usage-card-header">config (Waybar)</div>
+        <pre style="color:var(--text)">"mpris": {
+    <span class="flag">"format"</span>: "{player_icon} {title}",
+    <span class="flag">"format-paused"</span>: " {title}",
+    <span class="flag">"player-icons"</span>: { "mfp": "" },
+    <span class="flag">"status-icons"</span>: { "paused": "" }
+}</pre>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-top:10px">Add <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">"mpris"</code> to your <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">modules-left/center/right</code> array.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <p>
+      <strong style="color:var(--text-hi)">mfp</strong> — built with Rust ·
+      <a href="https://github.com/4DRIAN0RTIZ/mfp" target="_blank" rel="noopener">source</a> ·
+      <a href="https://github.com/4DRIAN0RTIZ/mfp/blob/main/LICENSE" target="_blank" rel="noopener">GPL-3.0</a>
+    </p>
+    <p style="margin-top:6px">Audio from <a href="https://musicforprogramming.net/" target="_blank" rel="noopener">musicforprogramming.net</a></p>
+  </div>
+</footer>
+
+<script>
+  function copy(btn, text) {
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1800);
+    });
+  }
+</script>
+</body>
+</html>
