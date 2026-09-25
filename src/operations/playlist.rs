@@ -1,4 +1,5 @@
 use crate::models::Episode;
+use crate::operations::episodes::position_by_number;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
@@ -28,6 +29,34 @@ impl Playlist {
             .collect();
 
         Self::new(episodes)
+    }
+
+    /// Builds the playlist for a play session.
+    ///
+    /// `favorite_titles` restricts the playlist to favorites when `Some`;
+    /// `shuffle` enables shuffle; `start_episode` skips ahead to the first
+    /// episode whose title matches that number (ignored when not found).
+    pub fn for_session(
+        episodes: &[Episode],
+        favorite_titles: Option<&[&String]>,
+        shuffle: bool,
+        start_episode: Option<usize>,
+    ) -> Self {
+        let mut playlist = match favorite_titles {
+            Some(favs) => Self::from_favorites(episodes, favs),
+            None => Self::new(episodes.to_vec()),
+        };
+        if shuffle {
+            playlist.enable_shuffle();
+        }
+        if let Some(num) = start_episode {
+            if let Some(pos) = position_by_number(playlist.all_episodes(), num) {
+                for _ in 0..pos {
+                    playlist.next();
+                }
+            }
+        }
+        playlist
     }
 
     pub fn enable_shuffle(&mut self) {
@@ -127,6 +156,25 @@ mod tests {
 
     fn title(p: &Playlist) -> Option<String> {
         p.current().map(|e| e.title.clone())
+    }
+
+    #[test]
+    fn for_session_selects_favorites_and_start_episode() {
+        let all = vec![ep("Episode 1: a"), ep("Episode 2: b"), ep("Episode 3: c")];
+        let fav_b = "Episode 2: b".to_string();
+        let fav_c = "Episode 3: c".to_string();
+        let favs = [&fav_b, &fav_c];
+
+        let p = Playlist::for_session(&all, Some(&favs), false, Some(3));
+        assert_eq!(p.len(), 2);
+        assert_eq!(title(&p).as_deref(), Some("Episode 3: c"));
+
+        let p = Playlist::for_session(&all, None, false, Some(99));
+        assert_eq!(p.len(), 3);
+        assert_eq!(title(&p).as_deref(), Some("Episode 1: a"));
+        assert!(!p.is_shuffled());
+
+        assert!(Playlist::for_session(&all, None, true, None).is_shuffled());
     }
 
     #[test]

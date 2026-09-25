@@ -115,12 +115,28 @@ impl Player {
         })
     }
 
-    /// Starts streaming `url`, reporting each stage through `on_stage`.
+    /// Starts streaming `url` and blocks ~1.5s to let audio begin.
+    ///
+    /// Same as [`Player::start`] followed by a fixed wait; used by the plain
+    /// CLI loop. Front ends that must not block should call `start` instead.
+    pub fn play(
+        &self,
+        url: &str,
+        on_stage: impl Fn(PlayerStage) + Send + Sync + 'static,
+    ) -> Result<()> {
+        self.start(url, on_stage)?;
+        std::thread::sleep(std::time::Duration::from_millis(1500));
+        Ok(())
+    }
+
+    /// Starts streaming `url` without waiting, reporting stages via `on_stage`.
     ///
     /// `Connecting` is reported on the calling thread; `Buffering` and `Ready`
     /// are reported from the playback thread, so the callback must be
-    /// `Send + Sync`. The player itself never prints.
-    pub fn play(
+    /// `Send + Sync`. The player itself never prints. `Player` is not `Send`
+    /// (it owns the audio `OutputStream`), so it must stay on the thread that
+    /// created it; this call only creates the sink and spawns worker threads.
+    pub fn start(
         &self,
         url: &str,
         on_stage: impl Fn(PlayerStage) + Send + Sync + 'static,
@@ -156,8 +172,6 @@ impl Player {
 
         *self.download_thread.lock().unwrap() = Some(download_handle);
         *self.playback_thread.lock().unwrap() = Some(playback_handle);
-
-        std::thread::sleep(std::time::Duration::from_millis(1500));
 
         Ok(())
     }

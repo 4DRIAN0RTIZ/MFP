@@ -77,6 +77,14 @@ impl MprisController {
         })
     }
 
+    /// Whether the MPRIS thread is still alive (false once it failed to
+    /// register on the bus or has exited).
+    pub fn is_running(&self) -> bool {
+        self.thread_handle
+            .as_ref()
+            .is_some_and(|handle| !handle.is_finished())
+    }
+
     /// Get receiver for commands from MPRIS callbacks
     pub fn command_receiver(&self) -> Receiver<MprisCommand> {
         self.callback_rx.clone()

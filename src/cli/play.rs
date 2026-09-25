@@ -1,6 +1,5 @@
-use crate::mpris::{MprisController, PlaybackStatus};
+use crate::mpris::MprisController;
 use crate::operations::downloads::Downloader;
-use crate::operations::episodes::position_by_number;
 use crate::operations::favorites::Favorites;
 use crate::operations::feed::Feed;
 use crate::operations::playback::{self, Action, Outcome};
@@ -14,34 +13,40 @@ use crossterm::{
 use std::io::{self, Write};
 use std::time::Duration;
 
+/// Runs the full-screen TUI player (opt-in via `mfp play --tui`).
+pub(super) fn play_tui(episode_num: Option<usize>, shuffle: bool, fav_mode: bool) -> Result<()> {
+    let favorites = Favorites::load()?;
+    if fav_mode && favorites.list().is_empty() {
+        println!("No tienes favoritos guardados. Usa 'mfp fav --add \"Episode XX: Title\"'");
+        return Ok(());
+    }
+    crate::tui::run(
+        crate::tui::PlayOptions {
+            episode: episode_num,
+            shuffle,
+            favorites_only: fav_mode,
+        },
+        favorites,
+    )
+}
+
 /// Runs the terminal radio player (playlist loop, keyboard and MPRIS control).
 pub(super) fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bool) -> Result<()> {
     println!("Cargando feed...");
     let feed = Feed::fetch()?;
     let mut favorites = Favorites::load()?;
 
-    let mut playlist = if fav_mode {
-        let fav_list = favorites.list();
-        if fav_list.is_empty() {
-            println!("No tienes favoritos guardados. Usa 'mfp fav --add \"Episode XX: Title\"'");
-            return Ok(());
-        }
-        Playlist::from_favorites(feed.episodes(), &fav_list)
-    } else {
-        Playlist::new(feed.episodes().to_vec())
-    };
-
-    if shuffle {
-        playlist.enable_shuffle();
+    if fav_mode && favorites.list().is_empty() {
+        println!("No tienes favoritos guardados. Usa 'mfp fav --add \"Episode XX: Title\"'");
+        return Ok(());
     }
-
-    if let Some(num) = episode_num {
-        if let Some(pos) = position_by_number(playlist.all_episodes(), num) {
-            for _ in 0..pos {
-                playlist.next();
-            }
-        }
-    }
+    let fav_list = favorites.list();
+    let mut playlist = Playlist::for_session(
+        feed.episodes(),
+        fav_mode.then_some(fav_list.as_slice()),
+        shuffle,
+        episode_num,
+    );
 
     let player = Player::new()?;
 
@@ -68,17 +73,10 @@ pub(super) fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bo
         // Update MPRIS metadata for new episode
         let total_seconds = player::parse_duration(&episode_duration).unwrap_or(0);
         if let Some(m) = mpris.as_ref() {
-            if let Err(e) = m.update_metadata(episode_title.clone(), total_seconds) {
-                eprintln!("Failed to update MPRIS metadata: {}", e);
-            }
-            if let Err(e) = m.update_playback_status(PlaybackStatus::Playing) {
-                eprintln!("Failed to update MPRIS playback status: {}", e);
-            }
-            if let Err(e) = m.update_shuffle(playlist.is_shuffled()) {
-                eprintln!("Failed to update MPRIS shuffle: {}", e);
-            }
-            if let Err(e) = m.update_navigation(true, true) {
-                eprintln!("Failed to update MPRIS navigation: {}", e);
+            for error in
+                playback::announce_episode(m, &episode_title, total_seconds, playlist.is_shuffled())
+            {
+                eprintln!("{}", error);
             }
         }
 

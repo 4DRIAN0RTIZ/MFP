@@ -32,6 +32,9 @@ enum Commands {
         /// Play only favorites
         #[arg(short, long)]
         favorites: bool,
+        /// Use the full-screen terminal UI (experimental)
+        #[arg(long)]
+        tui: bool,
     },
     /// Manage favorites
     Fav {
@@ -72,7 +75,14 @@ pub fn run() -> Result<()> {
             episode,
             shuffle,
             favorites: fav_mode,
-        }) => play::play_radio(episode, shuffle, fav_mode)?,
+            tui,
+        }) => {
+            if tui {
+                play::play_tui(episode, shuffle, fav_mode)?
+            } else {
+                play::play_radio(episode, shuffle, fav_mode)?
+            }
+        }
         Some(Commands::Fav { add, remove, list }) => fav::manage_favorites(add, remove, list)?,
         Some(Commands::Download {
             episode,

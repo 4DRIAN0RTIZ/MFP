@@ -5,6 +5,7 @@ mod models;
 mod mpris;
 mod operations;
 mod player;
+mod tui;
 
 fn main() -> anyhow::Result<()> {
     cli::run()

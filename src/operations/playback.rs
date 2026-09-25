@@ -197,6 +197,33 @@ pub fn apply(
     }
 }
 
+/// Pushes the state of a newly started episode to MPRIS (metadata, status,
+/// shuffle, navigation).
+///
+/// Every step is attempted; the returned messages describe the steps that
+/// failed (empty on success) so each front end decides how to report them.
+pub fn announce_episode(
+    mpris: &MprisController,
+    title: &str,
+    total_seconds: u64,
+    shuffled: bool,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    if let Err(e) = mpris.update_metadata(title.to_string(), total_seconds) {
+        errors.push(format!("Failed to update MPRIS metadata: {}", e));
+    }
+    if let Err(e) = mpris.update_playback_status(PlaybackStatus::Playing) {
+        errors.push(format!("Failed to update MPRIS playback status: {}", e));
+    }
+    if let Err(e) = mpris.update_shuffle(shuffled) {
+        errors.push(format!("Failed to update MPRIS shuffle: {}", e));
+    }
+    if let Err(e) = mpris.update_navigation(true, true) {
+        errors.push(format!("Failed to update MPRIS navigation: {}", e));
+    }
+    errors
+}
+
 fn set_volume(player: &Player, mpris: Option<&MprisController>, volume: f32) {
     player.set_volume(volume);
     if let Some(m) = mpris {
