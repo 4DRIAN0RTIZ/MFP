@@ -339,3 +339,77 @@ impl Drop for Player {
         self.stop();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_duration_minutes_seconds() {
+        assert_eq!(parse_duration("00:00"), Some(0));
+        assert_eq!(parse_duration("01:30"), Some(90));
+        assert_eq!(parse_duration("59:59"), Some(3599));
+    }
+
+    #[test]
+    fn parse_duration_hours() {
+        assert_eq!(parse_duration("1:00:00"), Some(3600));
+        assert_eq!(parse_duration("01:02:03"), Some(3723));
+    }
+
+    #[test]
+    fn parse_duration_does_not_range_check_fields() {
+        assert_eq!(parse_duration("90:90"), Some(5490));
+        assert_eq!(parse_duration("0:75:00"), Some(4500));
+    }
+
+    #[test]
+    fn parse_duration_rejects_wrong_shapes() {
+        assert_eq!(parse_duration(""), None);
+        assert_eq!(parse_duration("90"), None);
+        assert_eq!(parse_duration("1:2:3:4"), None);
+        assert_eq!(parse_duration(":"), None);
+        assert_eq!(parse_duration("1:"), None);
+        assert_eq!(parse_duration(":30"), None);
+    }
+
+    #[test]
+    fn parse_duration_rejects_non_numeric_and_negative() {
+        assert_eq!(parse_duration("aa:bb"), None);
+        assert_eq!(parse_duration("-1:30"), None);
+        assert_eq!(parse_duration("1:30.5"), None);
+    }
+
+    #[test]
+    fn parse_duration_does_not_trim_whitespace() {
+        assert_eq!(parse_duration(" 1:30"), None);
+        assert_eq!(parse_duration("1: 30"), None);
+    }
+
+    #[test]
+    fn format_duration_under_one_hour() {
+        assert_eq!(format_duration(0), "00:00");
+        assert_eq!(format_duration(5), "00:05");
+        assert_eq!(format_duration(90), "01:30");
+        assert_eq!(format_duration(3599), "59:59");
+    }
+
+    #[test]
+    fn format_duration_with_hours() {
+        assert_eq!(format_duration(3600), "01:00:00");
+        assert_eq!(format_duration(3723), "01:02:03");
+        assert_eq!(format_duration(36000), "10:00:00");
+    }
+
+    #[test]
+    fn format_duration_hours_do_not_wrap_at_24() {
+        assert_eq!(format_duration(100 * 3600), "100:00:00");
+    }
+
+    #[test]
+    fn format_then_parse_roundtrips() {
+        for secs in [0u64, 59, 60, 3599, 3600, 7325] {
+            assert_eq!(parse_duration(&format_duration(secs)), Some(secs));
+        }
+    }
+}

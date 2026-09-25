@@ -106,3 +106,152 @@ impl Playlist {
         &self.episodes
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ep(title: &str) -> Episode {
+        Episode {
+            title: title.to_string(),
+            audio_url: format!("http://x/{}.mp3", title),
+            duration: "01:00".to_string(),
+            pub_date: String::new(),
+            description: String::new(),
+        }
+    }
+
+    fn eps(n: usize) -> Vec<Episode> {
+        (0..n).map(|i| ep(&format!("e{}", i))).collect()
+    }
+
+    fn title(p: &Playlist) -> Option<String> {
+        p.current().map(|e| e.title.clone())
+    }
+
+    #[test]
+    fn empty_playlist_returns_none_everywhere() {
+        let mut p = Playlist::new(vec![]);
+        assert!(p.is_empty());
+        assert_eq!(p.len(), 0);
+        assert!(p.current().is_none());
+        assert!(p.next().is_none());
+        assert!(p.previous().is_none());
+    }
+
+    #[test]
+    fn empty_playlist_shuffle_does_not_panic() {
+        let mut p = Playlist::new(vec![]);
+        p.enable_shuffle();
+        assert!(p.is_shuffled());
+        assert!(p.current().is_none());
+    }
+
+    #[test]
+    fn starts_at_first_episode_unshuffled() {
+        let p = Playlist::new(eps(3));
+        assert_eq!(title(&p).as_deref(), Some("e0"));
+        assert!(!p.is_shuffled());
+        assert_eq!(p.len(), 3);
+    }
+
+    #[test]
+    fn next_wraps_to_start() {
+        let mut p = Playlist::new(eps(3));
+        assert_eq!(p.next().map(|e| e.title.clone()).as_deref(), Some("e1"));
+        assert_eq!(p.next().map(|e| e.title.clone()).as_deref(), Some("e2"));
+        assert_eq!(p.next().map(|e| e.title.clone()).as_deref(), Some("e0"));
+    }
+
+    #[test]
+    fn previous_wraps_to_end() {
+        let mut p = Playlist::new(eps(3));
+        assert_eq!(p.previous().map(|e| e.title.clone()).as_deref(), Some("e2"));
+        assert_eq!(p.previous().map(|e| e.title.clone()).as_deref(), Some("e1"));
+        assert_eq!(p.previous().map(|e| e.title.clone()).as_deref(), Some("e0"));
+        assert_eq!(p.previous().map(|e| e.title.clone()).as_deref(), Some("e2"));
+    }
+
+    #[test]
+    fn single_episode_next_and_previous_stay_put() {
+        let mut p = Playlist::new(eps(1));
+        assert_eq!(p.next().map(|e| e.title.clone()).as_deref(), Some("e0"));
+        assert_eq!(p.previous().map(|e| e.title.clone()).as_deref(), Some("e0"));
+    }
+
+    #[test]
+    fn shuffle_toggle_flips_flag() {
+        let mut p = Playlist::new(eps(5));
+        p.toggle_shuffle();
+        assert!(p.is_shuffled());
+        p.toggle_shuffle();
+        assert!(!p.is_shuffled());
+    }
+
+    #[test]
+    fn shuffled_traversal_visits_every_episode_once() {
+        let mut p = Playlist::new(eps(6));
+        p.enable_shuffle();
+        let mut seen = vec![title(&p).unwrap()];
+        for _ in 0..5 {
+            seen.push(p.next().unwrap().title.clone());
+        }
+        seen.sort();
+        assert_eq!(seen, vec!["e0", "e1", "e2", "e3", "e4", "e5"]);
+        // After a full cycle it wraps to the first shuffled position.
+        let first = seen_first(&p);
+        assert_eq!(p.next().unwrap().title, first);
+    }
+
+    fn seen_first(p: &Playlist) -> String {
+        p.episodes[p.shuffled_indices[0]].title.clone()
+    }
+
+    #[test]
+    fn disable_shuffle_restores_order_but_keeps_position_index() {
+        let mut p = Playlist::new(eps(4));
+        p.next(); // index 1
+        p.enable_shuffle();
+        p.disable_shuffle();
+        assert!(!p.is_shuffled());
+        // current_index is not reset by shuffle changes.
+        assert_eq!(title(&p).as_deref(), Some("e1"));
+    }
+
+    #[test]
+    fn enable_shuffle_keeps_current_index_not_current_episode() {
+        // Quirk: the index is preserved, so the current episode may change.
+        let mut p = Playlist::new(eps(4));
+        p.next();
+        p.enable_shuffle();
+        let expected = p.episodes[p.shuffled_indices[1]].title.clone();
+        assert_eq!(title(&p), Some(expected));
+    }
+
+    #[test]
+    fn from_favorites_filters_and_keeps_feed_order() {
+        let all = eps(4);
+        let t3 = "e3".to_string();
+        let t1 = "e1".to_string();
+        let p = Playlist::from_favorites(&all, &[&t3, &t1]);
+        let titles: Vec<&str> = p.all_episodes().iter().map(|e| e.title.as_str()).collect();
+        assert_eq!(titles, vec!["e1", "e3"]);
+    }
+
+    #[test]
+    fn from_favorites_ignores_unknown_titles() {
+        let all = eps(2);
+        let unknown = "nope".to_string();
+        let p = Playlist::from_favorites(&all, &[&unknown]);
+        assert!(p.is_empty());
+        assert!(p.current().is_none());
+    }
+
+    #[test]
+    fn all_episodes_returns_original_order_even_when_shuffled() {
+        let mut p = Playlist::new(eps(3));
+        p.enable_shuffle();
+        let titles: Vec<&str> = p.all_episodes().iter().map(|e| e.title.as_str()).collect();
+        assert_eq!(titles, vec!["e0", "e1", "e2"]);
+    }
+}
