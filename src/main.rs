@@ -1,5 +1,6 @@
 mod cli;
 mod config;
+mod logging;
 mod models;
 mod mpris;
 mod operations;

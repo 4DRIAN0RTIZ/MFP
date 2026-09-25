@@ -65,7 +65,7 @@ impl MprisController {
         let thread_handle = std::thread::spawn(move || {
             // Run async runtime in this thread
             if let Err(e) = async_std::task::block_on(Self::run_async_mpris(state_rx, callback_tx, stop_rx)) {
-                eprintln!("MPRIS thread error: {}", e);
+                crate::logging::log(&format!("MPRIS thread error: {}", e));
             }
         });
 
@@ -185,7 +185,7 @@ impl MprisController {
                 match select(state_fut, stop_fut).await {
                     futures::future::Either::Left((Ok(update), _)) => {
                         if let Err(e) = handle_state_update(&player_clone, update).await {
-                            eprintln!("Error handling state update: {}", e);
+                            crate::logging::log(&format!("Error handling state update: {}", e));
                         }
                         continue;
                     }

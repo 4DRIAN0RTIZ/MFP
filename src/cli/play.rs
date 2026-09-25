@@ -4,7 +4,7 @@ use crate::operations::episodes::position_by_number;
 use crate::operations::favorites::Favorites;
 use crate::operations::feed::Feed;
 use crate::operations::playlist::Playlist;
-use crate::player::{self, Player};
+use crate::player::{self, Player, PlayerStage};
 use anyhow::Result;
 use crossterm::{
     event::{self, Event, KeyCode, KeyEvent},
@@ -80,7 +80,17 @@ pub(super) fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bo
             if playlist.is_shuffled() { "ON" } else { "OFF" }
         );
 
-        player.play(&episode_url)?;
+        player.play(&episode_url, |stage| match stage {
+            PlayerStage::Connecting => {
+                print!("Connecting...");
+                std::io::stdout().flush().ok();
+            }
+            PlayerStage::Buffering => {
+                print!(" buffering...");
+                std::io::stdout().flush().ok();
+            }
+            PlayerStage::Ready => println!(" OK\n"),
+        })?;
 
         println!("Controles:");
         println!("  [n]ext | [b]ack | [p]ausa | [s]huffle | [f]avorite | [q]uit");
@@ -273,7 +283,7 @@ pub(super) fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bo
                                 "d" | "download" => {
                                     print!("\r{}\r", " ".repeat(120));
                                     println!("\nDownloading episode for offline...");
-                                    match downloader.download_episode(&episode_title, &episode_url)
+                                    match downloader.download_episode(&episode_title, &episode_url, super::download::render_download_event)
                                     {
                                         Ok(_) => println!("Episode downloaded\n"),
                                         Err(e) => println!("Error: {}\n", e),

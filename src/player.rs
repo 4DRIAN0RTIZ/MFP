@@ -75,6 +75,17 @@ impl Seek for StreamingBuffer {
     }
 }
 
+/// Stages of stream start-up reported to the caller of [`Player::play`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlayerStage {
+    /// Audio sink created; the stream request is starting.
+    Connecting,
+    /// Filling the initial buffer.
+    Buffering,
+    /// Initial buffer filled; playback is starting.
+    Ready,
+}
+
 pub struct Player {
     _stream: OutputStream,
     stream_handle: OutputStreamHandle,
@@ -104,15 +115,23 @@ impl Player {
         })
     }
 
-    pub fn play(&self, url: &str) -> Result<()> {
+    /// Starts streaming `url`, reporting each stage through `on_stage`.
+    ///
+    /// `Connecting` is reported on the calling thread; `Buffering` and `Ready`
+    /// are reported from the playback thread, so the callback must be
+    /// `Send + Sync`. The player itself never prints.
+    pub fn play(
+        &self,
+        url: &str,
+        on_stage: impl Fn(PlayerStage) + Send + Sync + 'static,
+    ) -> Result<()> {
+        let on_stage: Arc<dyn Fn(PlayerStage) + Send + Sync> = Arc::new(on_stage);
         self.stop();
 
         *self.start_time.lock().unwrap() = Some(Instant::now());
         *self.paused_duration.lock().unwrap() = Duration::from_secs(0);
 
-        print!("Connecting...");
-        use std::io::Write;
-        std::io::stdout().flush().ok();
+        on_stage(PlayerStage::Connecting);
 
         let sink = Arc::new(
             Sink::try_new(&self.stream_handle).context("No se pudo crear el sink de audio")?,
@@ -132,7 +151,7 @@ impl Player {
 
         let sink_clone = Arc::clone(&sink);
         let playback_handle = thread::spawn(move || {
-            let _ = Self::play_stream(rx, &sink_clone, download_complete);
+            let _ = Self::play_stream(rx, &sink_clone, download_complete, on_stage);
         });
 
         *self.download_thread.lock().unwrap() = Some(download_handle);
@@ -178,12 +197,11 @@ impl Player {
         rx: Receiver<Vec<u8>>,
         sink: &Sink,
         download_complete: Arc<Mutex<bool>>,
+        on_stage: Arc<dyn Fn(PlayerStage) + Send + Sync>,
     ) -> Result<()> {
         let mut initial_buffer = Vec::new();
 
-        print!(" buffering...");
-        use std::io::Write;
-        std::io::stdout().flush().ok();
+        on_stage(PlayerStage::Buffering);
 
         while initial_buffer.len() < BUFFER_SIZE {
             match rx.recv() {
@@ -197,7 +215,7 @@ impl Player {
             }
         }
 
-        println!(" OK\n");
+        on_stage(PlayerStage::Ready);
 
         let buffer_arc = Arc::new(Mutex::new(initial_buffer));
         let buffer_clone = Arc::clone(&buffer_arc);

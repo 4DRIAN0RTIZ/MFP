@@ -5,6 +5,30 @@ use std::path::{Path, PathBuf};
 
 const CHUNK_SIZE: usize = 32 * 1024; // Chunk size: 32 KB
 
+/// Progress notifications emitted by [`Downloader::download_episode`].
+///
+/// The downloader never prints; callers decide how (or whether) to render.
+#[derive(Debug, Clone, PartialEq)]
+pub enum DownloadEvent {
+    /// The file already exists locally; no download happens.
+    AlreadyDownloaded { filename: String },
+    /// A download is about to start.
+    Started { title: String },
+    /// Emitted every full MiB received, only when the total size is known.
+    Progress { downloaded: u64, total: u64 },
+    /// The transfer finished; `downloaded` is the total bytes received.
+    Finished { downloaded: u64 },
+}
+
+/// Result of [`Downloader::delete_episode`].
+#[derive(Debug, Clone, PartialEq)]
+pub enum DeleteOutcome {
+    /// The file existed and was removed.
+    Deleted { filename: String },
+    /// There was nothing to delete.
+    NotDownloaded,
+}
+
 pub struct Downloader {
     download_dir: PathBuf,
 }
@@ -18,16 +42,24 @@ impl Downloader {
         Ok(Downloader { download_dir })
     }
 
-    pub fn download_episode(&self, title: &str, url: &str) -> Result<PathBuf> {
+    /// Downloads an episode, reporting progress through `on_event`.
+    pub fn download_episode(
+        &self,
+        title: &str,
+        url: &str,
+        mut on_event: impl FnMut(DownloadEvent),
+    ) -> Result<PathBuf> {
         let filename = self.sanitize_filename(title);
         let file_path = self.download_dir.join(&filename);
 
         if file_path.exists() {
-            println!("Episode already downloaded: {}", filename);
+            on_event(DownloadEvent::AlreadyDownloaded { filename });
             return Ok(file_path);
         }
 
-        println!("Downloading: {}", title);
+        on_event(DownloadEvent::Started {
+            title: title.to_string(),
+        });
 
         let mut response =
             reqwest::blocking::get(url).context("No se pudo conectar al servidor")?;
@@ -53,14 +85,7 @@ impl Downloader {
 
                     if downloaded % (1024 * 1024) == 0 {
                         if let Some(total) = total_size {
-                            let percent = (downloaded as f64 / total as f64) * 100.0;
-                            print!(
-                                "\r  Progress: {:.1}% ({:.1}/{:.1} MB)",
-                                percent,
-                                downloaded as f64 / 1_048_576.0,
-                                total as f64 / 1_048_576.0
-                            );
-                            std::io::stdout().flush().ok();
+                            on_event(DownloadEvent::Progress { downloaded, total });
                         }
                     }
                 }
@@ -71,10 +96,7 @@ impl Downloader {
             }
         }
 
-        println!(
-            "\rDownload complete: {:.2} MB                    ",
-            downloaded as f64 / 1_048_576.0
-        );
+        on_event(DownloadEvent::Finished { downloaded });
 
         fs::rename(&temp_path, &file_path)?;
 
@@ -121,18 +143,17 @@ impl Downloader {
         }
     }
 
-    pub fn delete_episode(&self, title: &str) -> Result<()> {
+    /// Deletes a downloaded episode and reports what happened.
+    pub fn delete_episode(&self, title: &str) -> Result<DeleteOutcome> {
         let filename = self.sanitize_filename(title);
         let file_path = self.download_dir.join(&filename);
 
         if file_path.exists() {
             fs::remove_file(&file_path)?;
-            println!("Deleted: {}", filename);
+            Ok(DeleteOutcome::Deleted { filename })
         } else {
-            println!("Episode not downloaded");
+            Ok(DeleteOutcome::NotDownloaded)
         }
-
-        Ok(())
     }
 
     pub fn get_total_size(&self) -> Result<u64> {
@@ -175,5 +196,54 @@ impl Downloader {
 
     pub fn download_dir(&self) -> &Path {
         &self.download_dir
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn downloader_in(dir: &Path) -> Downloader {
+        fs::create_dir_all(dir).unwrap();
+        Downloader {
+            download_dir: dir.to_path_buf(),
+        }
+    }
+
+    #[test]
+    fn already_downloaded_emits_single_event() {
+        let dir = std::env::temp_dir().join(format!("mfp-dl-test-a-{}", std::process::id()));
+        let d = downloader_in(&dir);
+        fs::write(dir.join("Ep 1.mp3"), b"x").unwrap();
+
+        let mut events = Vec::new();
+        let path = d
+            .download_episode("Ep 1", "http://unused.invalid", |e| events.push(e))
+            .unwrap();
+
+        assert_eq!(path, dir.join("Ep 1.mp3"));
+        assert_eq!(
+            events,
+            vec![DownloadEvent::AlreadyDownloaded {
+                filename: "Ep 1.mp3".into()
+            }]
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn delete_reports_outcome() {
+        let dir = std::env::temp_dir().join(format!("mfp-dl-test-d-{}", std::process::id()));
+        let d = downloader_in(&dir);
+        fs::write(dir.join("Ep 2.mp3"), b"x").unwrap();
+
+        assert_eq!(
+            d.delete_episode("Ep 2").unwrap(),
+            DeleteOutcome::Deleted {
+                filename: "Ep 2.mp3".into()
+            }
+        );
+        assert_eq!(d.delete_episode("Ep 2").unwrap(), DeleteOutcome::NotDownloaded);
+        let _ = fs::remove_dir_all(&dir);
     }
 }

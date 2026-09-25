@@ -1,4 +1,5 @@
-use crate::operations::downloads::Downloader;
+use crate::operations::downloads::{DeleteOutcome, DownloadEvent, Downloader};
+use std::io::Write;
 use crate::operations::episodes::find_by_number;
 use crate::operations::feed::Feed;
 use anyhow::Result;
@@ -36,7 +37,10 @@ pub(super) fn manage_downloads(
     }
 
     if let Some(title) = delete {
-        downloader.delete_episode(&title)?;
+        match downloader.delete_episode(&title)? {
+            DeleteOutcome::Deleted { filename } => println!("Deleted: {}", filename),
+            DeleteOutcome::NotDownloaded => println!("Episode not downloaded"),
+        }
         return Ok(());
     }
 
@@ -45,7 +49,7 @@ pub(super) fn manage_downloads(
         let feed = Feed::fetch()?;
 
         if let Some(ep) = find_by_number(feed.episodes(), ep_num) {
-            downloader.download_episode(&ep.title, &ep.audio_url)?;
+            downloader.download_episode(&ep.title, &ep.audio_url, render_download_event)?;
         } else {
             println!("Episode {} not found", ep_num);
         }
@@ -60,4 +64,28 @@ pub(super) fn manage_downloads(
     println!("  mfp download --delete \"Episode 75\"  Eliminar episodio");
 
     Ok(())
+}
+
+/// Prints a download event to the terminal exactly as the plain CLI always did.
+pub(super) fn render_download_event(event: DownloadEvent) {
+    match event {
+        DownloadEvent::AlreadyDownloaded { filename } => {
+            println!("Episode already downloaded: {}", filename)
+        }
+        DownloadEvent::Started { title } => println!("Downloading: {}", title),
+        DownloadEvent::Progress { downloaded, total } => {
+            let percent = (downloaded as f64 / total as f64) * 100.0;
+            print!(
+                "\r  Progress: {:.1}% ({:.1}/{:.1} MB)",
+                percent,
+                downloaded as f64 / 1_048_576.0,
+                total as f64 / 1_048_576.0
+            );
+            std::io::stdout().flush().ok();
+        }
+        DownloadEvent::Finished { downloaded } => println!(
+            "\rDownload complete: {:.2} MB                    ",
+            downloaded as f64 / 1_048_576.0
+        ),
+    }
 }
