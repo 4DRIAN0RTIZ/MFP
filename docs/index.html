@@ -407,7 +407,7 @@
 <!-- Hero -->
 <div class="container">
   <div class="hero">
-    <div class="hero-badge">Rust · GPL-3.0 · Linux &amp; macOS</div>
+    <div class="hero-badge"><span id="hero-badge-release"></span> Rust · GPL-3.0 · Linux &amp; macOS</div>
     <h1><span>mfp</span> — Music For<br>Programming Player</h1>
     <p>Lightweight terminal player for <a href="https://musicforprogramming.net/" target="_blank" rel="noopener">musicforprogramming.net</a>. Streams directly, no external dependencies, MPRIS support.</p>
     <div class="hero-actions">
@@ -749,6 +749,20 @@ chmod +x ~/.config/polybar/scripts/mfp-*.sh</code>
 </footer>
 
 <script>
+  async function loadReleaseVersion() {
+    try {
+      const res = await fetch('changelog.json');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const releases = await res.json();
+      const version = releases.find(r => r.version)?.version;
+      const badge = document.getElementById('hero-badge-release');
+      if (version && badge) badge.textContent = version + ' ·';
+    } catch (error) {
+      console.error('Error fetching changelog.json:', error);
+    }
+  }
+  loadReleaseVersion();
+
   function copy(btn, text) {
     navigator.clipboard.writeText(text).then(() => {
       btn.textContent = 'copied';
