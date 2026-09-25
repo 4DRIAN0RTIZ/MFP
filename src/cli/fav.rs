@@ -1,4 +1,4 @@
-use crate::favorites::Favorites;
+use crate::operations::favorites::Favorites;
 use anyhow::Result;
 
 /// Adds, removes and/or lists favorite episodes.

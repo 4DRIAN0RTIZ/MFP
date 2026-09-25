@@ -1,10 +1,9 @@
 mod cli;
-mod downloader;
-mod favorites;
-mod feed;
+mod config;
+mod models;
 mod mpris;
+mod operations;
 mod player;
-mod playlist;
 
 fn main() -> anyhow::Result<()> {
     cli::run()

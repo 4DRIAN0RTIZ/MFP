@@ -1,9 +1,10 @@
-use crate::downloader::Downloader;
-use crate::favorites::Favorites;
-use crate::feed::Feed;
 use crate::mpris::{MprisCommand, MprisController, PlaybackStatus};
+use crate::operations::downloads::Downloader;
+use crate::operations::episodes::position_by_number;
+use crate::operations::favorites::Favorites;
+use crate::operations::feed::Feed;
+use crate::operations::playlist::Playlist;
 use crate::player::{self, Player};
-use crate::playlist::Playlist;
 use anyhow::Result;
 use crossterm::{
     event::{self, Event, KeyCode, KeyEvent},
@@ -34,12 +35,7 @@ pub(super) fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bo
     }
 
     if let Some(num) = episode_num {
-        let target_title = format!("Episode {}", num);
-        if let Some(pos) = playlist
-            .all_episodes()
-            .iter()
-            .position(|e| e.title.contains(&target_title))
-        {
+        if let Some(pos) = position_by_number(playlist.all_episodes(), num) {
             for _ in 0..pos {
                 playlist.next();
             }

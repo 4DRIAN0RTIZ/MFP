@@ -1,4 +1,4 @@
-use crate::feed::Episode;
+use crate::models::Episode;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 

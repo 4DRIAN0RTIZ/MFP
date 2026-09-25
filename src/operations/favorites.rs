@@ -13,18 +13,8 @@ pub struct Favorites {
 }
 
 impl Favorites {
-    fn config_path() -> Result<PathBuf> {
-        let config_dir = dirs::config_dir()
-            .context("Failed to find config directory")?
-            .join("mfp");
-
-        fs::create_dir_all(&config_dir).context("Failed to create config directory")?;
-
-        Ok(config_dir.join("favorites.json"))
-    }
-
     pub fn load() -> Result<Self> {
-        let path = Self::config_path()?;
+        let path = crate::config::favorites_path()?;
 
         if !path.exists() {
             return Ok(Self::default());
@@ -38,7 +28,7 @@ impl Favorites {
     pub fn save(&self) -> Result<()> {
         let path = match &self.path_override {
             Some(path) => path.clone(),
-            None => Self::config_path()?,
+            None => crate::config::favorites_path()?,
         };
         let content =
             serde_json::to_string_pretty(self).context("Failed to serialize favorites")?;

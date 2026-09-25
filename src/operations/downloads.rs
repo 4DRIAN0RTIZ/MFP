@@ -11,10 +11,7 @@ pub struct Downloader {
 
 impl Downloader {
     pub fn new() -> Result<Self> {
-        let download_dir = dirs::config_dir()
-            .context("No se pudo obtener el directorio de configuración")?
-            .join("mfp")
-            .join("downloads");
+        let download_dir = crate::config::downloads_dir()?;
 
         fs::create_dir_all(&download_dir)?;
 

@@ -1,5 +1,6 @@
-use crate::downloader::Downloader;
-use crate::feed::Feed;
+use crate::operations::downloads::Downloader;
+use crate::operations::episodes::find_by_number;
+use crate::operations::feed::Feed;
 use anyhow::Result;
 
 /// Downloads, lists, deletes or reports disk usage of offline episodes.
@@ -43,12 +44,7 @@ pub(super) fn manage_downloads(
         println!("Obteniendo episodio...");
         let feed = Feed::fetch()?;
 
-        let target_title = format!("Episode {}", ep_num);
-        if let Some(ep) = feed
-            .episodes()
-            .iter()
-            .find(|e| e.title.contains(&target_title))
-        {
+        if let Some(ep) = find_by_number(feed.episodes(), ep_num) {
             downloader.download_episode(&ep.title, &ep.audio_url)?;
         } else {
             println!("Episode {} not found", ep_num);
