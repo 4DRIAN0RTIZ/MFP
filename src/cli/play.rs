@@ -8,7 +8,7 @@ use crate::operations::playlist::Playlist;
 use crate::player::{self, Player, PlayerStage};
 use anyhow::Result;
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent},
+    event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
 use std::io::{self, Write};
@@ -157,7 +157,12 @@ pub(super) fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bo
             io::stdout().flush()?;
 
             if event::poll(Duration::from_millis(100))? {
-                if let Event::Key(KeyEvent { code, .. }) = event::read()? {
+                if let Event::Key(KeyEvent {
+                    code,
+                    kind: KeyEventKind::Press,
+                    ..
+                }) = event::read()?
+                {
                     match code {
                         KeyCode::Enter => {
                             let command = command_buffer.trim().to_string();

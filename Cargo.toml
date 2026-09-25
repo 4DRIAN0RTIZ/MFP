@@ -20,7 +20,8 @@ clap = { version = "4.5", features = ["derive"] }
 dirs = "5.0"
 rodio = { version = "0.17", default-features = false, features = ["symphonia-all"] }
 symphonia = { version = "0.5", features = ["all"] }
-crossterm = "0.27"
+crossterm = "0.28"
+ratatui = { version = "0.29", default-features = false, features = ["crossterm"] }
 mpris-server = "0.9"
 async-std = { version = "1", features = ["attributes"] }
 async-channel = "2"
