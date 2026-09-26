@@ -21,7 +21,7 @@ use crate::operations::playback::{self, Action, Outcome};
 use crate::operations::playlist::Playlist;
 use crate::player::{self, Player, PlayerStage};
 
-use super::app::{download_text, Activity, App, EpisodeView};
+use super::app::{download_text, Activity, App, EpisodeView, LayoutMode};
 use super::events::UiCommand;
 
 /// Options selecting what to play, mirroring `mfp play` flags.
@@ -33,6 +33,8 @@ pub struct PlayOptions {
     pub shuffle: bool,
     /// Play only favorites.
     pub favorites_only: bool,
+    /// Start in the compact layout instead of picking one from the terminal size.
+    pub compact: bool,
 }
 
 /// Messages sent from background threads to the UI loop.
@@ -111,6 +113,13 @@ impl<'a> Session<'a> {
                     self.options.shuffle,
                     self.options.episode,
                 );
+                app.set_episodes(
+                    playlist
+                        .all_episodes()
+                        .iter()
+                        .map(|e| e.title.clone())
+                        .collect(),
+                );
                 self.playlist = Some(playlist);
                 self.start_current(app, now);
             }
@@ -127,6 +136,7 @@ impl<'a> Session<'a> {
             AppMsg::DownloadDone(result) => {
                 self.downloading = false;
                 let last = app.download.take();
+                app.download_bytes = None;
                 match result {
                     Ok(()) => match last {
                         Some(text) if text.starts_with("Episode already") => {
@@ -152,6 +162,43 @@ impl<'a> Session<'a> {
                 self.start_download(app, now);
                 Flow::Continue
             }
+            UiCommand::ToggleLayout => {
+                if !app.toggle_layout() {
+                    app.set_status("Terminal demasiado pequeña para la vista completa", now);
+                }
+                Flow::Continue
+            }
+            // The list is only on screen in the full layout; ignore its keys
+            // otherwise so nothing invisible gets played or edited.
+            _ if app.layout() != LayoutMode::Full => Flow::Continue,
+            UiCommand::Move(movement) => {
+                app.move_selection(movement);
+                Flow::Continue
+            }
+            UiCommand::PlaySelected => {
+                self.play_selected(app, now);
+                Flow::Continue
+            }
+            UiCommand::StartSearch => {
+                app.start_search();
+                Flow::Continue
+            }
+            UiCommand::SearchInput(c) => {
+                app.push_query(c);
+                Flow::Continue
+            }
+            UiCommand::SearchBackspace => {
+                app.pop_query();
+                Flow::Continue
+            }
+            UiCommand::SearchAccept => {
+                app.accept_search();
+                Flow::Continue
+            }
+            UiCommand::SearchCancel => {
+                app.cancel_search();
+                Flow::Continue
+            }
         }
     }
 
@@ -174,6 +221,7 @@ impl<'a> Session<'a> {
         app.volume = self.player.volume();
         app.paused = self.player.is_paused();
         app.mpris_connected = self.mpris.is_some_and(|m| m.is_running());
+        app.favorites = self.favorites.list().into_iter().cloned().collect();
         if let Some(playlist) = &self.playlist {
             app.shuffle = playlist.is_shuffled();
             if let Some(ep) = &app.episode {
@@ -221,6 +269,26 @@ impl<'a> Session<'a> {
         }
     }
 
+    /// Plays the episode selected in the list.
+    ///
+    /// The list shows the playlist's own episodes (all feed episodes, or only
+    /// favorites in favorites mode), so the selection maps 1:1 onto
+    /// `Playlist::jump_to`, which also handles shuffle. It then takes the same
+    /// path as next/back: stop, start, announce to MPRIS, bump the generation.
+    fn play_selected(&mut self, app: &mut App, now: Instant) {
+        let Some(position) = app.selected_episode() else {
+            return;
+        };
+        let Some(playlist) = self.playlist.as_mut() else {
+            return;
+        };
+        if playlist.jump_to(position).is_none() {
+            return;
+        }
+        self.player.stop();
+        self.start_current(app, now);
+    }
+
     /// Starts the playlist's current episode without blocking.
     fn start_current(&mut self, app: &mut App, now: Instant) {
         let Some(playlist) = self.playlist.as_ref() else {
@@ -243,6 +311,8 @@ impl<'a> Session<'a> {
         }
 
         let favorite = self.favorites.is_favorite(&title);
+        app.playing = playlist.current_position();
+        app.select_playing();
         app.begin_episode(
             EpisodeView {
                 title,
@@ -296,6 +366,7 @@ impl<'a> Session<'a> {
         };
         let (title, url) = (ep.title.clone(), ep.audio_url.clone());
         self.downloading = true;
+        app.download_bytes = None;
         app.download = Some(download_text(&DownloadEvent::Started {
             title: title.clone(),
         }));

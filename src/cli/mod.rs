@@ -35,6 +35,9 @@ enum Commands {
         /// Use the full-screen terminal UI (experimental)
         #[arg(long)]
         tui: bool,
+        /// Start the TUI in the compact layout (only with --tui)
+        #[arg(long, requires = "tui")]
+        compact: bool,
     },
     /// Manage favorites
     Fav {
@@ -76,9 +79,10 @@ pub fn run() -> Result<()> {
             shuffle,
             favorites: fav_mode,
             tui,
+            compact,
         }) => {
             if tui {
-                play::play_tui(episode, shuffle, fav_mode)?
+                play::play_tui(episode, shuffle, fav_mode, compact)?
             } else {
                 play::play_radio(episode, shuffle, fav_mode)?
             }

@@ -4,6 +4,17 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 const CHUNK_SIZE: usize = 32 * 1024; // Chunk size: 32 KB
+const MIB: u64 = 1024 * 1024;
+
+/// The MiB count to report when `downloaded` has crossed a MiB boundary beyond
+/// `last_reported_mib`, or `None` when no new boundary was crossed.
+///
+/// Reads arrive in arbitrary chunk sizes, so an exact `% MIB == 0` check would
+/// almost never fire.
+fn next_progress_mib(downloaded: u64, last_reported_mib: u64) -> Option<u64> {
+    let mib = downloaded / MIB;
+    (mib > last_reported_mib).then_some(mib)
+}
 
 /// Progress notifications emitted by [`Downloader::download_episode`].
 ///
@@ -14,7 +25,8 @@ pub enum DownloadEvent {
     AlreadyDownloaded { filename: String },
     /// A download is about to start.
     Started { title: String },
-    /// Emitted every full MiB received, only when the total size is known.
+    /// Emitted each time the running total crosses a new MiB boundary, only
+    /// when the total size is known.
     Progress { downloaded: u64, total: u64 },
     /// The transfer finished; `downloaded` is the total bytes received.
     Finished { downloaded: u64 },
@@ -74,6 +86,7 @@ impl Downloader {
         let mut file = File::create(&temp_path).context("No se pudo crear el archivo")?;
 
         let mut downloaded = 0u64;
+        let mut last_reported_mib = 0u64;
         let mut buffer = vec![0u8; CHUNK_SIZE];
 
         loop {
@@ -83,7 +96,8 @@ impl Downloader {
                     file.write_all(&buffer[..n])?;
                     downloaded += n as u64;
 
-                    if downloaded % (1024 * 1024) == 0 {
+                    if let Some(mib) = next_progress_mib(downloaded, last_reported_mib) {
+                        last_reported_mib = mib;
                         if let Some(total) = total_size {
                             on_event(DownloadEvent::Progress { downloaded, total });
                         }
@@ -211,6 +225,19 @@ mod tests {
     }
 
     #[test]
+    fn progress_fires_once_per_new_mib_boundary() {
+        assert_eq!(next_progress_mib(0, 0), None);
+        assert_eq!(next_progress_mib(MIB - 1, 0), None);
+        assert_eq!(next_progress_mib(MIB, 0), Some(1));
+        // Same MiB again: nothing new.
+        assert_eq!(next_progress_mib(MIB + 32 * 1024, 1), None);
+        // Crossing with an unaligned total still reports.
+        assert_eq!(next_progress_mib(2 * MIB + 5, 1), Some(2));
+        // A large jump reports the latest MiB once.
+        assert_eq!(next_progress_mib(5 * MIB + 1, 1), Some(5));
+    }
+
+    #[test]
     fn already_downloaded_emits_single_event() {
         let dir = std::env::temp_dir().join(format!("mfp-dl-test-a-{}", std::process::id()));
         let d = downloader_in(&dir);
@@ -243,7 +270,10 @@ mod tests {
                 filename: "Ep 2.mp3".into()
             }
         );
-        assert_eq!(d.delete_episode("Ep 2").unwrap(), DeleteOutcome::NotDownloaded);
+        assert_eq!(
+            d.delete_episode("Ep 2").unwrap(),
+            DeleteOutcome::NotDownloaded
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 }

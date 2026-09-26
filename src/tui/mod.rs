@@ -1,5 +1,5 @@
-//! Terminal UI (ratatui). Currently the compact player view, opt-in via
-//! `mfp play --tui`.
+//! Terminal UI (ratatui): compact player view and full view (episode list plus
+//! status panel), opt-in via `mfp play --tui`.
 //!
 //! The UI loop is synchronous. Anything slow (feed fetch, stream start-up,
 //! downloads) runs on std threads and reports back over an mpsc channel; MPRIS
@@ -8,6 +8,7 @@
 
 mod app;
 mod events;
+mod list;
 mod session;
 mod theme;
 mod ui;
@@ -30,7 +31,7 @@ use crate::mpris::MprisController;
 use crate::operations::favorites::Favorites;
 use crate::player::Player;
 
-use app::App;
+use app::{App, LayoutPref};
 use session::{Flow, Session};
 
 pub use session::PlayOptions;
@@ -120,17 +121,20 @@ fn event_loop(
 ) -> Result<()> {
     let (tx, rx) = mpsc::channel();
     let mut app = App::new(mpris.is_some());
+    if options.compact {
+        app.layout_pref = LayoutPref::Compact;
+    }
     let mut session = Session::new(player, favorites, mpris, options, tx);
 
     loop {
         let now = Instant::now();
         session.sync(&mut app);
         app.expire_status(now);
-        terminal.draw(|frame| ui::draw(frame, &app, now))?;
+        terminal.draw(|frame| ui::draw(frame, &mut app, now))?;
 
         if event::poll(TICK)? {
             if let Event::Key(key) = event::read()? {
-                if let Some(command) = events::map_key(key) {
+                if let Some(command) = events::map_key(key, app.effective_input_mode()) {
                     if session.handle_command(command, &mut app, Instant::now()) == Flow::Quit {
                         return Ok(());
                     }

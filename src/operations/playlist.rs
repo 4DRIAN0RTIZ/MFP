@@ -119,6 +119,36 @@ impl Playlist {
         self.current()
     }
 
+    /// Position of the current episode within [`Playlist::all_episodes`]
+    /// (feed order, independent of shuffle).
+    pub fn current_position(&self) -> Option<usize> {
+        if self.episodes.is_empty() {
+            return None;
+        }
+        if self.shuffle {
+            self.shuffled_indices.get(self.current_index).copied()
+        } else {
+            Some(self.current_index)
+        }
+    }
+
+    /// Makes the episode at `position` (an index into [`Playlist::all_episodes`])
+    /// the current one and returns it, or `None` when out of range.
+    ///
+    /// With shuffle on, the playlist keeps its shuffled order and simply moves
+    /// to where that episode sits in it, so `next`/`previous` continue from there.
+    pub fn jump_to(&mut self, position: usize) -> Option<&Episode> {
+        if position >= self.episodes.len() {
+            return None;
+        }
+        self.current_index = if self.shuffle {
+            self.shuffled_indices.iter().position(|&i| i == position)?
+        } else {
+            position
+        };
+        self.current()
+    }
+
     pub fn len(&self) -> usize {
         self.episodes.len()
     }
@@ -301,5 +331,53 @@ mod tests {
         p.enable_shuffle();
         let titles: Vec<&str> = p.all_episodes().iter().map(|e| e.title.as_str()).collect();
         assert_eq!(titles, vec!["e0", "e1", "e2"]);
+    }
+
+    #[test]
+    fn jump_to_selects_by_feed_position() {
+        let mut p = Playlist::new(eps(5));
+        assert_eq!(p.jump_to(3).map(|e| e.title.clone()).as_deref(), Some("e3"));
+        assert_eq!(p.current_position(), Some(3));
+        assert_eq!(p.next().map(|e| e.title.clone()).as_deref(), Some("e4"));
+        assert!(p.jump_to(5).is_none());
+        assert_eq!(p.current_position(), Some(4));
+    }
+
+    #[test]
+    fn jump_to_works_with_shuffle_and_continues_the_shuffled_order() {
+        let mut p = Playlist::new(eps(6));
+        p.enable_shuffle();
+        for target in 0..6 {
+            assert_eq!(
+                p.jump_to(target).map(|e| e.title.clone()),
+                Some(format!("e{}", target))
+            );
+            assert_eq!(p.current_position(), Some(target));
+        }
+        // After a jump, a full shuffled cycle still visits every episode once.
+        p.jump_to(2);
+        let mut seen = vec![title(&p).unwrap()];
+        for _ in 0..5 {
+            seen.push(p.next().unwrap().title.clone());
+        }
+        seen.sort();
+        assert_eq!(seen, vec!["e0", "e1", "e2", "e3", "e4", "e5"]);
+    }
+
+    #[test]
+    fn jump_to_in_a_favorites_playlist_uses_positions_within_it() {
+        let all = eps(4);
+        let t3 = "e3".to_string();
+        let t1 = "e1".to_string();
+        let mut p = Playlist::from_favorites(&all, &[&t3, &t1]);
+        assert_eq!(p.jump_to(1).map(|e| e.title.clone()).as_deref(), Some("e3"));
+        assert!(p.jump_to(2).is_none());
+    }
+
+    #[test]
+    fn jump_and_position_on_empty_playlist() {
+        let mut p = Playlist::new(vec![]);
+        assert!(p.jump_to(0).is_none());
+        assert_eq!(p.current_position(), None);
     }
 }

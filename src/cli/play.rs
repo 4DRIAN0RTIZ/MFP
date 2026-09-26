@@ -14,7 +14,12 @@ use std::io::{self, Write};
 use std::time::Duration;
 
 /// Runs the full-screen TUI player (opt-in via `mfp play --tui`).
-pub(super) fn play_tui(episode_num: Option<usize>, shuffle: bool, fav_mode: bool) -> Result<()> {
+pub(super) fn play_tui(
+    episode_num: Option<usize>,
+    shuffle: bool,
+    fav_mode: bool,
+    compact: bool,
+) -> Result<()> {
     let favorites = Favorites::load()?;
     if fav_mode && favorites.list().is_empty() {
         println!("No tienes favoritos guardados. Usa 'mfp fav --add \"Episode XX: Title\"'");
@@ -25,6 +30,7 @@ pub(super) fn play_tui(episode_num: Option<usize>, shuffle: bool, fav_mode: bool
             episode: episode_num,
             shuffle,
             favorites_only: fav_mode,
+            compact,
         },
         favorites,
     )

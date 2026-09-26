@@ -1,9 +1,12 @@
 //! TUI state: everything the views need, with no I/O.
 
+use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
 use crate::operations::downloads::DownloadEvent;
 use crate::player::PlayerStage;
+
+use super::list::{filter_indices, move_selection, scroll_offset, ListMove};
 
 /// How long a transient status message stays visible.
 const STATUS_TTL: Duration = Duration::from_secs(4);
@@ -30,6 +33,54 @@ pub enum StatusKind {
     Info,
     /// Something went wrong.
     Error,
+}
+
+/// Smallest terminal (width, height) where `Auto` picks the full view.
+pub const FULL_AUTO_MIN: (u16, u16) = (80, 16);
+/// Smallest terminal (width, height) where the full view can be forced.
+pub const FULL_MIN: (u16, u16) = (64, 12);
+/// Rows per page before the first draw reports the real list height.
+const DEFAULT_PAGE: usize = 10;
+
+/// User preference for the layout.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LayoutPref {
+    /// Full when the terminal is big enough, compact otherwise.
+    #[default]
+    Auto,
+    /// Always compact (manual override).
+    Compact,
+    /// Full whenever it fits at all (manual override).
+    Full,
+}
+
+/// The layout actually drawn.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayoutMode {
+    /// Player only.
+    Compact,
+    /// Episode list plus player and status panels.
+    Full,
+}
+
+/// Resolves the layout to draw for a preference and terminal size.
+pub fn resolve_layout(pref: LayoutPref, width: u16, height: u16) -> LayoutMode {
+    let fits = |min: (u16, u16)| width >= min.0 && height >= min.1;
+    match pref {
+        LayoutPref::Compact => LayoutMode::Compact,
+        LayoutPref::Full if fits(FULL_MIN) => LayoutMode::Full,
+        LayoutPref::Auto if fits(FULL_AUTO_MIN) => LayoutMode::Full,
+        _ => LayoutMode::Compact,
+    }
+}
+
+/// Which part of the UI receives typed characters.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InputMode {
+    /// Letters are playback shortcuts; arrows move the selection.
+    List,
+    /// Letters are typed into the search query.
+    Search,
 }
 
 /// The episode being played.
@@ -64,6 +115,28 @@ pub struct App {
     pub activity: Activity,
     /// Download progress text while a download runs.
     pub download: Option<String>,
+    /// Download completion in `(downloaded, total)` bytes, when known.
+    pub download_bytes: Option<(u64, u64)>,
+    /// Titles of the playlist, in feed order (what the list shows).
+    pub episodes: Vec<String>,
+    /// Titles that are favorites.
+    pub favorites: HashSet<String>,
+    /// Index into `episodes` of the playing episode.
+    pub playing: Option<usize>,
+    /// Layout preference (`v` and `--compact` change it).
+    pub layout_pref: LayoutPref,
+    /// Search query typed so far (applied live as a filter).
+    pub query: String,
+    /// Where typed characters go.
+    pub input_mode: InputMode,
+    /// Selected row within the filtered list.
+    selected: usize,
+    /// First visible row of the filtered list, maintained by the renderer.
+    list_offset: usize,
+    /// Visible list rows, reported by the renderer; drives paging.
+    list_page: usize,
+    /// Terminal size seen by the last draw.
+    viewport: (u16, u16),
     status: Option<(String, StatusKind, Instant)>,
 }
 
@@ -80,8 +153,158 @@ impl App {
             mpris_connected,
             activity: Activity::Loading,
             download: None,
+            download_bytes: None,
+            episodes: Vec::new(),
+            favorites: HashSet::new(),
+            playing: None,
+            layout_pref: LayoutPref::Auto,
+            query: String::new(),
+            input_mode: InputMode::List,
+            selected: 0,
+            list_offset: 0,
+            list_page: DEFAULT_PAGE,
+            viewport: (0, 0),
             status: None,
         }
+    }
+
+    /// Layout that the current terminal size resolves to.
+    pub fn layout(&self) -> LayoutMode {
+        resolve_layout(self.layout_pref, self.viewport.0, self.viewport.1)
+    }
+
+    /// Input mode in effect: search only counts while the list is on screen,
+    /// so a resize to the compact view never leaves keys swallowed by an
+    /// invisible search box.
+    pub fn effective_input_mode(&self) -> InputMode {
+        if self.layout() == LayoutMode::Full {
+            self.input_mode
+        } else {
+            InputMode::List
+        }
+    }
+
+    /// Records the terminal size (called by the renderer).
+    pub fn set_viewport(&mut self, width: u16, height: u16) {
+        self.viewport = (width, height);
+    }
+
+    /// Switches between compact and full and pins the choice for the session.
+    ///
+    /// Returns `false` (leaving the preference alone) when the full view was
+    /// requested but the terminal is too small for it.
+    pub fn toggle_layout(&mut self) -> bool {
+        match self.layout() {
+            LayoutMode::Full => {
+                self.layout_pref = LayoutPref::Compact;
+                true
+            }
+            LayoutMode::Compact => {
+                if resolve_layout(LayoutPref::Full, self.viewport.0, self.viewport.1)
+                    == LayoutMode::Full
+                {
+                    self.layout_pref = LayoutPref::Full;
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
+
+    /// Replaces the list contents (titles in feed order).
+    pub fn set_episodes(&mut self, titles: Vec<String>) {
+        self.episodes = titles;
+        self.selected = 0;
+        self.list_offset = 0;
+    }
+
+    /// Indices into `episodes` that pass the current filter.
+    pub fn visible(&self) -> Vec<usize> {
+        filter_indices(&self.episodes, &self.query)
+    }
+
+    /// Selected row within [`App::visible`], clamped to the list.
+    pub fn selected(&self) -> usize {
+        self.selected.min(self.visible().len().saturating_sub(1))
+    }
+
+    /// Index into `episodes` of the selected row, if any.
+    pub fn selected_episode(&self) -> Option<usize> {
+        self.visible().get(self.selected()).copied()
+    }
+
+    /// Moves the selection.
+    pub fn move_selection(&mut self, movement: ListMove) {
+        let len = self.visible().len();
+        self.selected = move_selection(self.selected(), len, movement, self.list_page);
+    }
+
+    /// Puts the selection on the playing episode when it passes the filter.
+    pub fn select_playing(&mut self) {
+        if let Some(playing) = self.playing {
+            if let Some(pos) = self.visible().iter().position(|&i| i == playing) {
+                self.selected = pos;
+            }
+        }
+    }
+
+    /// Appends a character to the search query.
+    pub fn push_query(&mut self, c: char) {
+        let keep = self.selected_episode();
+        self.query.push(c);
+        self.reselect(keep);
+    }
+
+    /// Removes the last character of the search query.
+    pub fn pop_query(&mut self) {
+        let keep = self.selected_episode();
+        self.query.pop();
+        self.reselect(keep);
+    }
+
+    /// Enters search mode, keeping any existing query for editing.
+    pub fn start_search(&mut self) {
+        self.input_mode = InputMode::Search;
+    }
+
+    /// Leaves search mode keeping the filter.
+    pub fn accept_search(&mut self) {
+        self.input_mode = InputMode::List;
+    }
+
+    /// Clears the filter and leaves search mode; the selection stays on the
+    /// same episode.
+    pub fn cancel_search(&mut self) {
+        let keep = self.selected_episode();
+        self.input_mode = InputMode::List;
+        self.query.clear();
+        self.reselect(keep);
+    }
+
+    /// After the filter changed: keep `episode` selected when it still
+    /// matches, otherwise start from the top.
+    fn reselect(&mut self, episode: Option<usize>) {
+        let visible = self.visible();
+        self.selected = episode
+            .and_then(|ep| visible.iter().position(|&i| i == ep))
+            .unwrap_or(0);
+        self.list_offset = 0;
+    }
+
+    /// The visible window for a list `height` rows tall: `(offset, rows)` where
+    /// rows are indices into `episodes`. Updates the stored offset and page size.
+    pub fn list_window(&mut self, height: usize) -> (usize, Vec<usize>) {
+        let visible = self.visible();
+        self.list_page = height.saturating_sub(1).max(1);
+        let selected = self.selected.min(visible.len().saturating_sub(1));
+        self.list_offset = scroll_offset(self.list_offset, selected, height, visible.len());
+        let rows = visible
+            .into_iter()
+            .skip(self.list_offset)
+            .take(height)
+            .collect();
+        (self.list_offset, rows)
     }
 
     /// Shows `message` for a few seconds.
@@ -111,19 +334,23 @@ impl App {
     ///
     /// Priority: transient message, then player activity, then download.
     pub fn status_line(&self, now: Instant) -> Option<(String, StatusKind)> {
+        self.message_line(now)
+            .or_else(|| self.download.clone().map(|d| (d, StatusKind::Info)))
+    }
+
+    /// Like [`App::status_line`] without the download text: the transient
+    /// message or the player activity.
+    pub fn message_line(&self, now: Instant) -> Option<(String, StatusKind)> {
         if let Some((text, kind)) = self.status_at(now) {
             return Some((text.to_string(), kind));
         }
         match &self.activity {
-            Activity::Loading => return Some(("Cargando feed...".into(), StatusKind::Info)),
-            Activity::Connecting => return Some(("Connecting...".into(), StatusKind::Info)),
-            Activity::Buffering => {
-                return Some(("Connecting... buffering...".into(), StatusKind::Info))
-            }
-            Activity::Failed(e) => return Some((e.clone(), StatusKind::Error)),
-            Activity::Idle => {}
+            Activity::Loading => Some(("Cargando feed...".into(), StatusKind::Info)),
+            Activity::Connecting => Some(("Connecting...".into(), StatusKind::Info)),
+            Activity::Buffering => Some(("Connecting... buffering...".into(), StatusKind::Info)),
+            Activity::Failed(e) => Some((e.clone(), StatusKind::Error)),
+            Activity::Idle => None,
         }
-        self.download.clone().map(|d| (d, StatusKind::Info))
     }
 
     /// Resets per-episode state when a new episode starts.
@@ -147,6 +374,11 @@ impl App {
 
     /// Applies a download event to the progress text.
     pub fn apply_download_event(&mut self, event: DownloadEvent) {
+        self.download_bytes = match &event {
+            DownloadEvent::Progress { downloaded, total } => Some((*downloaded, *total)),
+            DownloadEvent::Finished { downloaded } => Some((*downloaded, *downloaded)),
+            _ => self.download_bytes,
+        };
         self.download = Some(download_text(&event));
     }
 }
@@ -261,5 +493,159 @@ mod tests {
             }),
             "Episode already downloaded: a.mp3"
         );
+    }
+
+    fn list_app(n: usize) -> App {
+        let mut app = App::new(false);
+        app.set_episodes(
+            (0..n)
+                .map(|i| format!("Episode {}: title {}", 100 - i, i))
+                .collect(),
+        );
+        app
+    }
+
+    #[test]
+    fn auto_layout_depends_on_terminal_size() {
+        use LayoutMode::*;
+        assert_eq!(resolve_layout(LayoutPref::Auto, 80, 16), Full);
+        assert_eq!(resolve_layout(LayoutPref::Auto, 200, 50), Full);
+        assert_eq!(resolve_layout(LayoutPref::Auto, 79, 30), Compact);
+        assert_eq!(resolve_layout(LayoutPref::Auto, 120, 15), Compact);
+        assert_eq!(resolve_layout(LayoutPref::Compact, 200, 50), Compact);
+        // Forced full works below the auto threshold but not below its own minimum.
+        assert_eq!(resolve_layout(LayoutPref::Full, 70, 13), Full);
+        assert_eq!(resolve_layout(LayoutPref::Full, 63, 30), Compact);
+        assert_eq!(resolve_layout(LayoutPref::Full, 100, 11), Compact);
+    }
+
+    #[test]
+    fn toggle_layout_overrides_auto_and_sticks() {
+        let mut app = App::new(false);
+        app.set_viewport(110, 30);
+        assert_eq!(app.layout(), LayoutMode::Full);
+        assert!(app.toggle_layout());
+        assert_eq!(app.layout_pref, LayoutPref::Compact);
+        // Resizing does not undo the manual choice.
+        app.set_viewport(200, 60);
+        assert_eq!(app.layout(), LayoutMode::Compact);
+        assert!(app.toggle_layout());
+        assert_eq!(app.layout_pref, LayoutPref::Full);
+        // A forced full view then survives a shrink to a still-fitting size.
+        app.set_viewport(70, 20);
+        assert_eq!(app.layout(), LayoutMode::Full);
+    }
+
+    #[test]
+    fn toggle_to_full_is_refused_when_it_does_not_fit() {
+        let mut app = App::new(false);
+        app.set_viewport(50, 20);
+        assert_eq!(app.layout(), LayoutMode::Compact);
+        assert!(!app.toggle_layout());
+        assert_eq!(app.layout_pref, LayoutPref::Auto);
+    }
+
+    #[test]
+    fn search_mode_only_counts_while_the_list_is_visible() {
+        let mut app = list_app(3);
+        app.set_viewport(110, 30);
+        app.start_search();
+        assert_eq!(app.effective_input_mode(), InputMode::Search);
+        app.set_viewport(60, 20);
+        assert_eq!(app.effective_input_mode(), InputMode::List);
+    }
+
+    #[test]
+    fn selection_moves_and_clamps() {
+        let mut app = list_app(5);
+        app.move_selection(ListMove::Up);
+        assert_eq!(app.selected(), 0);
+        app.move_selection(ListMove::End);
+        assert_eq!(app.selected(), 4);
+        app.move_selection(ListMove::Down);
+        assert_eq!(app.selected(), 4);
+        app.move_selection(ListMove::Home);
+        assert_eq!(app.selected_episode(), Some(0));
+        app.move_selection(ListMove::PageDown);
+        assert_eq!(app.selected(), 4);
+    }
+
+    #[test]
+    fn selection_starts_on_the_playing_episode() {
+        let mut app = list_app(10);
+        app.playing = Some(6);
+        app.select_playing();
+        assert_eq!(app.selected(), 6);
+        assert_eq!(app.selected_episode(), Some(6));
+    }
+
+    #[test]
+    fn typing_filters_live_and_keeps_the_selected_episode_when_it_matches() {
+        let mut app = list_app(10);
+        app.start_search();
+        app.move_selection(ListMove::End);
+        assert_eq!(app.selected_episode(), Some(9));
+        for c in "title 9".chars() {
+            app.push_query(c);
+        }
+        assert_eq!(app.visible(), vec![9]);
+        assert_eq!(app.selected_episode(), Some(9));
+        // Backspacing widens the filter; the episode stays selected.
+        app.pop_query();
+        assert_eq!(app.selected_episode(), Some(9));
+        app.cancel_search();
+        assert!(app.query.is_empty());
+        assert_eq!(app.input_mode, InputMode::List);
+        assert_eq!(app.visible().len(), 10);
+        assert_eq!(app.selected_episode(), Some(9));
+    }
+
+    #[test]
+    fn filter_without_the_old_selection_starts_from_the_top() {
+        let mut app = list_app(10);
+        app.move_selection(ListMove::End);
+        app.start_search();
+        for c in "title 2".chars() {
+            app.push_query(c);
+        }
+        assert_eq!(app.visible(), vec![2]);
+        assert_eq!(app.selected_episode(), Some(2));
+        for c in "zz".chars() {
+            app.push_query(c);
+        }
+        assert!(app.visible().is_empty());
+        assert_eq!(app.selected_episode(), None);
+    }
+
+    #[test]
+    fn accepting_search_keeps_the_filter() {
+        let mut app = list_app(10);
+        app.start_search();
+        for c in "title 3".chars() {
+            app.push_query(c);
+        }
+        app.accept_search();
+        assert_eq!(app.input_mode, InputMode::List);
+        assert_eq!(app.query, "title 3");
+        assert_eq!(app.visible(), vec![3]);
+    }
+
+    #[test]
+    fn list_window_scrolls_with_the_selection() {
+        let mut app = list_app(30);
+        let (offset, rows) = app.list_window(5);
+        assert_eq!((offset, rows.len()), (0, 5));
+        for _ in 0..7 {
+            app.move_selection(ListMove::Down);
+        }
+        let (offset, rows) = app.list_window(5);
+        assert_eq!(offset, 3);
+        assert_eq!(rows, vec![3, 4, 5, 6, 7]);
+        // Page size follows the reported height.
+        app.move_selection(ListMove::PageDown);
+        assert_eq!(app.selected(), 11);
+        app.move_selection(ListMove::End);
+        let (offset, _) = app.list_window(5);
+        assert_eq!(offset, 25);
     }
 }
