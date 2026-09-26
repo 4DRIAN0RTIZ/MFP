@@ -1,481 +1,392 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MFP — Music For Programming Player</title>
-  <meta name="description" content="Lightweight terminal player for Music For Programming radio. Pure Rust, no external dependencies." />
-  <style>
-    :root {
-      --bg:        #0d0d0d;
-      --surface:   #141414;
-      --border:    #222;
-      --accent:    #7fff7f;
-      --accent2:   #4ec9b0;
-      --muted:     #555;
-      --text:      #ccc;
-      --text-hi:   #eee;
-      --mono:      "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
-      --sans:      system-ui, -apple-system, sans-serif;
-      --radius:    6px;
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MFP — Music For Programming player for your terminal</title>
+<meta name="description" content="MFP is a free, open-source terminal player for musicforprogramming.net: live audio visualizer, color themes and media keys. Written in Rust for Linux and macOS." />
+<link rel="canonical" href="https://mfp.cuevaneander.tech/" />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0908" />
+<meta name="color-scheme" content="dark" />
+<meta name="author" content="4DRIAN0RTIZ" />
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="MFP" />
+<meta property="og:title" content="MFP — Music For Programming, in your terminal" />
+<meta property="og:description" content="A free, open-source terminal player for musicforprogramming.net with a live visualizer, color themes and media keys. Written in Rust." />
+<meta property="og:url" content="https://mfp.cuevaneander.tech/" />
+<meta property="og:image" content="https://mfp.cuevaneander.tech/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:alt" content="MFP: Music For Programming, in your terminal. A terminal window showing the episode list, the player and an audio visualizer with colored bars." />
+<meta property="og:locale" content="en_US" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="MFP — Music For Programming, in your terminal" />
+<meta name="twitter:description" content="A free, open-source terminal player for musicforprogramming.net with a live visualizer, color themes and media keys." />
+<meta name="twitter:image" content="https://mfp.cuevaneander.tech/og-image.png" />
+<meta name="twitter:image:alt" content="MFP: Music For Programming, in your terminal. A terminal window showing the episode list, the player and an audio visualizer with colored bars." />
 
-    html { scroll-behavior: smooth; }
+<link rel="icon" href="favicon.ico" sizes="32x32" />
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="manifest" href="site.webmanifest" />
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--sans);
-      font-size: 15px;
-      line-height: 1.6;
-    }
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Martian+Mono:wght@400;600&amp;display=swap" />
 
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "MFP",
+  "alternateName": "Music For Programming Player",
+  "description": "A free, open-source terminal player for musicforprogramming.net with a live audio visualizer, color themes and MPRIS media keys. Written in Rust.",
+  "url": "https://mfp.cuevaneander.tech/",
+  "image": "https://mfp.cuevaneander.tech/og-image.png",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "Linux, macOS",
+  "programmingLanguage": "Rust",
+  "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "codeRepository": "https://github.com/4DRIAN0RTIZ/mfp",
+  "sameAs": [
+    "https://github.com/4DRIAN0RTIZ/mfp"
+  ]
+}
+</script>
+<script>document.documentElement.classList.add('js')</script>
+<style>
+@font-face{font-family:"Serif Fallback";src:local("Georgia"),local("Times New Roman"),local("DejaVu Serif");size-adjust:67%;ascent-override:92%;descent-override:26%;line-gap-override:0%}
+@font-face{font-family:"Mono Fallback";src:local("DejaVu Sans Mono"),local("Menlo"),local("Consolas"),local("Liberation Mono");size-adjust:116%;ascent-override:95%;descent-override:25%;line-gap-override:0%}
+:root{
+color-scheme:dark;
+--ink:#0a0908;--panel:#12100e;--panel2:#1b1815;--line:#2b2621;--line2:#3d362e;
+--txt:#d9d3c5;--hi:#f7f2e7;--mut:#a9a396;
+--pa:var(--t-accent);--pa-ink:#0a0908;
+--serif:"Instrument Serif","Serif Fallback",Georgia,"Times New Roman",serif;
+--mono:"Martian Mono","Mono Fallback",ui-monospace,"DejaVu Sans Mono",Menlo,Consolas,monospace;
+--term:"DejaVu Sans Mono","JetBrains Mono",Menlo,Consolas,"Liberation Mono","Noto Sans Mono",ui-monospace,monospace;
+--ease:cubic-bezier(.2,.7,.2,1);
+--t-background:#282828;--t-foreground:#ebdbb2;--t-accent:#fabd2f;--t-muted:#928374;--t-border:#665c54;--t-success:#b8bb26;--t-danger:#fb4934;--t-status-text:#ebdbb2;--t-help-key:#fe8019;--t-help-text:#a89984;--t-selection-bg:#504945;--t-selection-fg:#ebdbb2;--t-playing-marker:#b8bb26;--t-favorite:#fabd2f;--t-progress-filled:#fabd2f;--t-progress-empty:#504945;--t-volume-filled:#8ec07c;--t-volume-empty:#504945;--t-viz-low:#83a598;--t-viz-mid:#fabd2f;--t-viz-high:#fb4934;--t-viz-peak:#ebdbb2;--t-viz-dim:#665c54;--t-viz-wave:#8ec07c;--t-viz-vu-ok:#b8bb26;--t-viz-vu-warn:#fabd2f;--t-viz-vu-clip:#fb4934;--t-viz-vu-hold:#ebdbb2;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:76px;-webkit-text-size-adjust:100%}
+body{background:var(--ink);color:var(--txt);font:400 13px/1.8 var(--mono);overflow-x:clip;min-height:100vh}
+.atmo{position:fixed;inset:0;z-index:-1;pointer-events:none;
+background:
+radial-gradient(1100px 620px at 88% -8%,color-mix(in srgb,var(--pa) 15%,transparent),transparent 62%),
+radial-gradient(800px 560px at -4% 34%,color-mix(in srgb,var(--t-viz-low) 10%,transparent),transparent 62%),
+radial-gradient(760px 520px at 62% 112%,color-mix(in srgb,var(--t-viz-high) 9%,transparent),transparent 62%),
+url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+a{color:var(--pa);text-decoration:none;text-underline-offset:3px}
+a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--pa);outline-offset:3px;border-radius:4px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip{position:absolute;left:12px;top:-60px;z-index:100;background:var(--pa);color:var(--pa-ink);padding:8px 14px;border-radius:6px;font-weight:600}
+.skip:focus{top:10px;text-decoration:none}
+code{font-family:var(--mono);font-size:.94em}
+kbd{font-family:var(--mono)}
 
-    /* ── Layout ── */
-    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+/* nav */
+.top{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--ink) 80%,transparent);-webkit-backdrop-filter:blur(12px) saturate(1.3);backdrop-filter:blur(12px) saturate(1.3);border-bottom:1px solid var(--line)}
+.bar{max-width:1280px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;gap:18px}
+.brand{display:flex;align-items:center;gap:.7ch;font-weight:600;font-size:15px;color:var(--hi);letter-spacing:.02em;flex:none}
+.brand:hover{text-decoration:none}
+.brand i{display:inline-block;width:.62em;height:1.15em;background:var(--pa);animation:blink 1.15s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.menu{display:flex;gap:2px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12px,#000 calc(100% - 20px),transparent);mask-image:linear-gradient(90deg,transparent,#000 12px,#000 calc(100% - 20px),transparent);padding:0 8px}
+.menu::-webkit-scrollbar{display:none}
+.menu a{padding:6px 10px;color:var(--mut);font-size:12px;border-radius:6px;white-space:nowrap;transition:color .2s,background .2s}
+.menu a:hover{color:var(--hi);background:var(--panel2);text-decoration:none}
+.ver{flex:none;font-size:11px;color:var(--pa);border:1px solid color-mix(in srgb,var(--pa) 45%,transparent);border-radius:99px;padding:1px 10px}
+.ver:empty{display:none}
+.gh{flex:none;display:inline-flex;align-items:center;gap:8px;color:var(--hi);font-size:12px;border:1px solid var(--line2);padding:5px 12px;border-radius:8px;transition:border-color .2s,background .2s}
+.gh:hover{border-color:var(--pa);background:var(--panel2);text-decoration:none}
 
-    /* ── Nav ── */
-    nav {
-      position: sticky; top: 0; z-index: 10;
-      border-bottom: 1px solid var(--border);
-      background: rgba(13,13,13,.92);
-      backdrop-filter: blur(8px);
-    }
-    nav .inner {
-      max-width: 860px; margin: 0 auto; padding: 0 24px;
-      height: 52px;
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 16px;
-    }
-    .nav-brand {
-      font-family: var(--mono);
-      font-size: 14px;
-      color: var(--accent);
-      font-weight: 700;
-      letter-spacing: .05em;
-    }
-    .nav-links { display: flex; gap: 16px; }
-    .nav-links a {
-      color: var(--muted);
-      font-size: 13px;
-      transition: color .15s;
-    }
-    .nav-links a:hover { color: var(--text-hi); text-decoration: none; }
+/* hero */
+.hero{padding:64px 0 48px}
+.hero-in{max-width:1280px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);column-gap:48px;align-items:start}
+.eyebrow{grid-column:1/-1;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);display:flex;gap:1.2ch;flex-wrap:wrap}
+.eyebrow b{color:var(--pa);font-weight:600}
+h1{grid-column:1/-1;position:relative;z-index:3;font:400 clamp(3.1rem,8.4vw,7.6rem)/.9 var(--serif);letter-spacing:-.022em;color:var(--hi);margin:.28em 0 .42em;text-wrap:balance;pointer-events:none}
+h1 em{color:var(--pa);font-style:italic;text-shadow:0 0 60px color-mix(in srgb,var(--pa) 45%,transparent)}
+.hero-copy{grid-column:1;grid-row:3;align-self:start}
+.lead{font-size:14px;color:var(--txt);max-width:44ch}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin:26px 0 30px}
+.btn{display:inline-flex;align-items:center;gap:10px;font:600 12.5px var(--mono);padding:12px 20px;border-radius:10px;border:1px solid var(--line2);color:var(--hi);cursor:pointer;background:transparent;transition:transform .25s var(--ease),border-color .2s,background .2s,box-shadow .3s}
+.btn:hover{text-decoration:none;transform:translateY(-2px);border-color:var(--pa)}
+.btn.pri{background:var(--pa);color:var(--pa-ink);border-color:transparent;box-shadow:0 10px 34px -10px color-mix(in srgb,var(--pa) 70%,transparent)}
+.btn.pri:hover{box-shadow:0 16px 44px -8px color-mix(in srgb,var(--pa) 85%,transparent)}
+.spec{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;font-size:12px;border-top:1px solid var(--line);padding-top:18px;max-width:46ch}
+.spec dt{color:var(--mut)}
+.spec dd{color:var(--txt)}
+.demo-wrap{grid-column:2;grid-row:3;position:relative;margin-top:-2.4rem;min-width:0}
+@media(min-width:961px){.demo-wrap{margin-left:-2rem}}
+.term-frame{position:relative;border:1px solid var(--line2);border-radius:14px;background:#0d0c0b;overflow:hidden;
+box-shadow:0 50px 90px -30px #000,0 0 0 1px #ffffff09,0 0 110px -20px color-mix(in srgb,var(--t-accent) 38%,transparent)}
+.term-bar{height:36px;display:flex;align-items:center;gap:8px;padding:0 14px;background:linear-gradient(#1d1a17,#141210);border-bottom:1px solid #000;font-size:11px;color:var(--mut)}
+.term-bar i{width:11px;height:11px;border-radius:50%;background:#3a342d}
+.term-bar span{margin-left:auto;margin-right:auto;transform:translateX(-22px)}
+.term{position:relative;background:var(--t-background);padding:14px 16px 20px;cursor:text;outline:none}
+.term::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(to bottom,transparent 0 2px,rgb(0 0 0/.15) 2px 3px),radial-gradient(130% 100% at 50% 45%,transparent 58%,rgb(0 0 0/.4))}
+.term:focus-visible{box-shadow:inset 0 0 0 2px var(--pa)}
+.screen{margin:0;font:13px/1.22 var(--term);white-space:pre;color:var(--t-foreground);height:calc(18*1.22em);overflow-x:auto;overflow-y:hidden;font-variant-ligatures:none;tab-size:1}
+html.js .screen{overflow:hidden}
+.meas{position:absolute;visibility:hidden;font:13px/1 var(--term);white-space:pre;left:0;top:0}
+.hint{position:absolute;right:14px;bottom:10px;z-index:2;font:600 11px var(--mono);padding:3px 10px;border-radius:99px;background:color-mix(in srgb,#000 68%,transparent);color:var(--hi);border:1px solid var(--line2);pointer-events:none}
+.hint .live{display:none}
+.term:focus .hint .idle{display:none}
+.term:focus .hint .live{display:inline}
+.term:focus .hint{border-color:var(--pa);color:var(--pa)}
+html:not(.js) .hint,html:not(.js) .js-only{display:none!important}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.tb{display:inline-flex;align-items:center;gap:8px;font:400 11.5px var(--mono);color:var(--txt);background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:6px 11px;cursor:pointer;transition:transform .2s var(--ease),border-color .2s,background .2s,color .2s}
+.tb kbd{font-weight:600;color:var(--pa);min-width:1.4ch;text-align:center}
+.tb:hover{transform:translateY(-2px);border-color:var(--pa);color:var(--hi)}
+.tb[aria-pressed=true]{background:color-mix(in srgb,var(--pa) 16%,var(--panel));border-color:color-mix(in srgb,var(--pa) 60%,transparent);color:var(--hi)}
+.themes{margin-top:18px;border:0}
+.themes legend{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin-bottom:10px;float:left;width:100%}
+.chips{display:flex;flex-wrap:wrap;gap:8px;clear:both}
+.chip{display:inline-flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;font:600 12px/1.2 var(--mono);color:var(--txt);background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:8px 12px 8px 10px;cursor:pointer;transition:transform .25s var(--ease),border-color .2s,background .2s,box-shadow .3s}
+.chip small{font:400 10px var(--mono);color:var(--mut)}
+.chip .dots{display:flex;gap:3px;margin-bottom:2px}
+.chip .dots b{width:11px;height:11px;border-radius:3px;border:1px solid #ffffff22}
+.chip:hover{transform:translateY(-3px) rotate(-.6deg);border-color:var(--pa)}
+.chip[aria-pressed=true]{background:color-mix(in srgb,var(--pa) 14%,var(--panel));border-color:var(--pa);color:var(--hi);box-shadow:0 8px 28px -10px color-mix(in srgb,var(--pa) 65%,transparent)}
+.demo-note{font-size:11.5px;color:var(--mut);margin-top:12px;max-width:70ch}
 
-    /* ── Hero ── */
-    .hero {
-      padding: 96px 0 72px;
-      text-align: center;
-    }
-    .hero-badge {
-      display: inline-block;
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--accent);
-      border: 1px solid #2a4a2a;
-      background: #0d1f0d;
-      border-radius: 999px;
-      padding: 4px 12px;
-      margin-bottom: 28px;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-    .hero h1 {
-      font-family: var(--mono);
-      font-size: clamp(2.4rem, 6vw, 4rem);
-      color: var(--text-hi);
-      font-weight: 700;
-      letter-spacing: -.02em;
-      line-height: 1.1;
-      margin-bottom: 20px;
-    }
-    .hero h1 span { color: var(--accent); }
-    .hero p {
-      font-size: 1.05rem;
-      color: var(--muted);
-      max-width: 480px;
-      margin: 0 auto 40px;
-      line-height: 1.7;
-    }
-    .hero-actions {
-      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
-    }
-    .btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      font-family: var(--mono);
-      font-size: 13px;
-      padding: 10px 20px;
-      border-radius: var(--radius);
-      transition: all .15s;
-      cursor: pointer;
-      border: none;
-    }
-    .btn-primary {
-      background: var(--accent);
-      color: #0d0d0d;
-      font-weight: 700;
-    }
-    .btn-primary:hover { background: #9aff9a; text-decoration: none; }
-    .btn-ghost {
-      background: transparent;
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-    .btn-ghost:hover { border-color: #444; color: var(--text-hi); text-decoration: none; }
+/* terminal cell classes */
+.b{color:var(--t-border)}.ac{color:var(--t-accent)}.ti{color:var(--t-accent);font-weight:700}.bd{font-weight:700}.mu{color:var(--t-muted)}.ok{color:var(--t-success)}.er{color:var(--t-danger)}.st{color:var(--t-status-text)}.hk{color:var(--t-help-key)}.ht{color:var(--t-help-text)}.mk{color:var(--t-playing-marker)}.fv{color:var(--t-favorite)}.pf{color:var(--t-progress-filled)}.pe{color:var(--t-progress-empty)}.vf{color:var(--t-volume-filled)}.ve{color:var(--t-volume-empty)}
+.sel{background:var(--t-selection-bg);color:var(--t-selection-fg)}
+.v0{--c:var(--t-viz-low)}.v1{--c:color-mix(in srgb,var(--t-viz-low),var(--t-viz-mid))}.v2{--c:var(--t-viz-mid)}.v3{--c:color-mix(in srgb,var(--t-viz-mid),var(--t-viz-high))}.v4{--c:var(--t-viz-high)}.vp{--c:var(--t-viz-peak)}.vd{--c:var(--t-viz-dim)}.vw{--c:var(--t-viz-wave)}.vo{--c:var(--t-viz-vu-ok)}.vn{--c:var(--t-viz-vu-warn)}.vc{--c:var(--t-viz-vu-clip)}.vh{--c:var(--t-viz-vu-hold)}
+.v0,.v1,.v2,.v3,.v4,.vp,.vd,.vw,.vo,.vn,.vc,.vh{color:var(--c)}
+.v0,.v1,.v2,.v3,.v4,.vw,.vp{text-shadow:0 0 7px color-mix(in srgb,var(--c) 40%,transparent)}
+.rv{color:var(--t-background);background:var(--c);text-shadow:none}
+[data-i]{cursor:pointer}
 
-    /* ── Screenshot ── */
-    .screenshot-wrap {
-      margin: 64px 0;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow: hidden;
-      background: var(--surface);
-    }
-    .screenshot-bar {
-      height: 36px;
-      background: #1a1a1a;
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: center;
-      padding: 0 14px;
-      gap: 7px;
-    }
-    .dot { width: 12px; height: 12px; border-radius: 50%; }
-    .dot-red   { background: #ff5f57; }
-    .dot-yellow{ background: #ffbd2e; }
-    .dot-green { background: #28c840; }
-    .screenshot-bar span {
-      margin-left: auto;
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--muted);
-    }
-    .screenshot-wrap img {
-      display: block;
-      width: 100%;
-      height: auto;
-    }
+/* sections */
+main{display:block}
+.sec{padding:104px 0;border-top:1px solid var(--line);position:relative}
+.wrap{max-width:1280px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:minmax(200px,280px) minmax(0,1fr);gap:0 72px}
+.sec-head{position:sticky;top:92px;align-self:start}
+.label{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--pa)}
+.sec h2{font:400 clamp(2.1rem,3.6vw,3.2rem)/1 var(--serif);color:var(--hi);margin-top:.55rem;letter-spacing:-.012em;scroll-margin-top:90px;text-wrap:balance}
+.sec-body{min-width:0}
+.sec-body h3{font:400 1.7rem/1.1 var(--serif);color:var(--hi);margin:44px 0 14px;letter-spacing:-.005em}
+.sec-body h3:first-child{margin-top:0}
+.sec-body p,.sec-body li{max-width:70ch;color:var(--txt)}
+.sec-body p{margin-bottom:14px}
+.sec-body ul.plain{padding-left:20px;margin-bottom:14px}
+.sec-body li{margin-bottom:8px}
+.sec-body li::marker{color:var(--pa)}
+.sec-body strong{color:var(--hi);font-weight:600}
+.sec-body code{white-space:nowrap;color:color-mix(in srgb,var(--pa) 88%,#fff);background:#ffffff0b;padding:.08em .4em;border-radius:5px}
+.code-block code,.usage-card code{background:none;padding:0}
+.note{border-left:3px solid var(--pa);background:color-mix(in srgb,var(--pa) 9%,transparent);border-radius:0 10px 10px 0;padding:12px 18px;margin:0 0 16px;max-width:70ch;color:var(--hi)}
+.sec-body p.note{color:var(--txt)}
+.keys-note{color:var(--mut)!important}
 
-    /* ── Section ── */
-    section { padding: 64px 0; }
-    .section-label {
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--accent);
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      margin-bottom: 12px;
-    }
-    h2 {
-      font-size: 1.6rem;
-      color: var(--text-hi);
-      font-weight: 700;
-      margin-bottom: 40px;
-      letter-spacing: -.01em;
-    }
+/* code + copy */
+.code-block{background:#0e0d0b;border:1px solid var(--line);border-radius:10px;padding:14px 14px 14px 18px;font:12.5px/1.7 var(--mono);display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin:0 0 16px;max-width:100%;position:relative}
+.code-block code{white-space:pre;flex:1;min-width:0;overflow-x:auto;color:var(--hi);padding-bottom:2px}
+.code-block.tall{align-items:flex-start}
+.copy-btn{flex:none;background:var(--panel2);border:1px solid var(--line2);color:var(--mut);font:11px var(--mono);padding:4px 11px;border-radius:7px;cursor:pointer;transition:all .2s}
+.copy-btn:hover{color:var(--hi);border-color:var(--pa)}
+.copy-btn.copied{border-color:var(--pa);color:var(--pa)}
+.usage-grid,.mini-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(290px,1fr))}
+.usage-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;min-width:0;transition:border-color .25s,transform .3s var(--ease)}
+.usage-card:hover{border-color:var(--line2)}
+.usage-card-header{padding:11px 18px;border-bottom:1px solid var(--line);font-size:11.5px;letter-spacing:.06em;color:var(--hi);font-weight:600;background:linear-gradient(#171411,#12100e)}
+.usage-card pre{padding:14px 18px;font:12px/1.85 var(--mono);color:var(--txt);overflow-x:auto}
+.usage-card pre .cmd{color:var(--pa)}.usage-card pre .flag{color:var(--t-viz-low)}.usage-card pre .comment{color:var(--mut)}
+.usage-card+.usage-card.mt{margin-top:16px}
 
-    /* ── Features ── */
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 16px;
-    }
-    .feature-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px;
-      transition: border-color .15s;
-    }
-    .feature-card:hover { border-color: #333; }
-    .feature-icon {
-      font-size: 1.4rem;
-      margin-bottom: 12px;
-      display: block;
-    }
-    .feature-card h3 {
-      font-size: 14px;
-      color: var(--text-hi);
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    .feature-card p {
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.55;
-    }
+/* features bento */
+.bento{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+.feat{grid-column:span 4;background:linear-gradient(160deg,#171411,#100e0c);border:1px solid var(--line);border-radius:16px;padding:24px;position:relative;overflow:hidden;transition:transform .35s var(--ease),border-color .25s,box-shadow .35s}
+.feat:hover{transform:translateY(-4px);border-color:color-mix(in srgb,var(--pa) 55%,var(--line));box-shadow:0 24px 50px -24px color-mix(in srgb,var(--pa) 40%,transparent)}
+.feat.w5{grid-column:span 5}.feat.w7{grid-column:span 7}
+.feat .no{font:italic 400 1.9rem/1 var(--serif);color:var(--pa);display:block;margin-bottom:14px}
+.feat h3{font:600 13.5px/1.3 var(--mono);color:var(--hi);margin:0 0 8px}
+.feat p{font-size:12.5px;color:var(--txt);line-height:1.7;margin:0}
+.feat .big{font:400 clamp(2.6rem,5vw,4.4rem)/.95 var(--serif);color:var(--hi);display:block;margin:6px 0 10px}
+.feat .big em{color:var(--pa)}
+.feat .pv{margin:16px 0 0}
+.feat.hl::before{content:"";position:absolute;inset:-40% -20% auto auto;width:70%;height:90%;background:radial-gradient(closest-side,color-mix(in srgb,var(--pa) 22%,transparent),transparent);pointer-events:none}
 
-    /* ── Install ── */
-    .install-section { border-top: 1px solid var(--border); }
-    .install-steps { display: flex; flex-direction: column; gap: 20px; }
-    .install-step { display: flex; gap: 16px; align-items: flex-start; }
-    .step-num {
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--accent);
-      background: #0d1f0d;
-      border: 1px solid #2a4a2a;
-      border-radius: var(--radius);
-      width: 28px; height: 28px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
-    .step-body h3 {
-      font-size: 14px;
-      color: var(--text-hi);
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    .step-body p { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+/* install */
+.steps{display:grid;gap:18px}
+.step{display:grid;grid-template-columns:64px minmax(0,1fr);gap:16px;align-items:start;padding:22px;border:1px solid var(--line);border-radius:16px;background:var(--panel)}
+.step-num{font:italic 400 3.2rem/.9 var(--serif);color:var(--pa)}
+.step h3{margin:0 0 6px!important;font:400 1.55rem/1.1 var(--serif)!important}
+.step .code-block{margin:10px 0 0}
+.step p{margin:0}
 
-    /* ── Code blocks ── */
-    .code-block {
-      background: #111;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 14px 18px;
-      font-family: var(--mono);
-      font-size: 13px;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .code-block code { white-space: pre; flex: 1; }
-    .copy-btn {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      font-family: var(--mono);
-      font-size: 11px;
-      padding: 4px 10px;
-      border-radius: 4px;
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: all .15s;
-    }
-    .copy-btn:hover { border-color: #444; color: var(--text); }
-    .copy-btn.copied { border-color: var(--accent); color: var(--accent); }
+/* keys */
+.controls-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-bottom:22px}
+.control-row{display:flex;align-items:center;gap:14px;padding:9px 12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;transition:border-color .2s,background .2s}
+.control-row:hover{border-color:var(--line2);background:var(--panel2)}
+.kbd{flex:none;min-width:2.6em;text-align:center;font:600 12px var(--mono);color:var(--pa);background:linear-gradient(#26221d,#191613);border:1px solid #3d362e;border-bottom-width:3px;border-radius:7px;padding:2px 9px;white-space:nowrap}
+.control-row span:not(.kbd){font-size:12.5px;color:var(--txt);line-height:1.4}
 
-    /* ── Controls ── */
-    .controls-section { border-top: 1px solid var(--border); }
-    .controls-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 8px;
-    }
-    .control-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 14px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-    }
-    .kbd {
-      font-family: var(--mono);
-      font-size: 12px;
-      background: #1e1e1e;
-      border: 1px solid #333;
-      border-bottom: 2px solid #333;
-      border-radius: 4px;
-      padding: 2px 8px;
-      color: var(--accent2);
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    .control-row span {
-      font-size: 12px;
-      color: var(--muted);
-    }
+/* tables */
+.table-wrap{overflow-x:auto;margin:6px 0 22px;border:1px solid var(--line);border-radius:12px;background:#0d0c0a;max-width:100%}
+.table-wrap:focus-visible{outline-offset:2px}
+.doc-table{width:100%;border-collapse:collapse;min-width:520px}
+.doc-table th{position:sticky;top:0;text-align:left;font:600 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mut);padding:12px 16px;border-bottom:1px solid var(--line);background:#12100e}
+.doc-table td{padding:10px 16px;font-size:12.5px;color:var(--txt);border-bottom:1px solid #1c1915;vertical-align:top}
+.doc-table tr:last-child td{border-bottom:0}
+.doc-table tbody tr:hover td{background:#ffffff05}
+.doc-table td:first-child,.doc-table th:first-child{position:sticky;left:0;background:#0f0d0b;white-space:nowrap;z-index:1}
+.doc-table th:first-child{background:#12100e}
+.doc-table td:first-child{width:14em}
+.doc-table.wide td:first-child{width:18em}
+.doc-table td:first-child code{color:var(--pa);background:none;padding:0}
 
-    /* ── Usage ── */
-    .usage-section { border-top: 1px solid var(--border); }
-    .usage-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 20px;
-    }
-    .usage-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-    }
-    .usage-card-header {
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--border);
-      font-size: 12px;
-      color: var(--text-hi);
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .usage-card pre {
-      padding: 16px 18px;
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--text);
-      line-height: 1.7;
-      overflow-x: auto;
-    }
-    .usage-card pre .cmd { color: var(--accent); }
-    .usage-card pre .flag { color: var(--accent2); }
-    .usage-card pre .comment { color: var(--muted); }
+/* visualizer + themes */
+.style-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));margin-bottom:16px}
+.style-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:border-color .25s,transform .35s var(--ease)}
+.style-card:hover{border-color:var(--pa);transform:translateY(-3px)}
+.style-card h3{margin:0!important;padding:12px 18px;border-bottom:1px solid var(--line);font:600 12px var(--mono)!important;color:var(--hi)}
+.style-card h3 code{color:var(--pa)!important;background:none!important;padding:0!important}
+.style-card p{font-size:12.5px;padding:12px 18px 0;margin:0}
+.pv{margin:12px 18px 18px;padding:10px 12px;border-radius:8px;background:var(--t-background);color:var(--t-accent);font:12px/1.15 var(--term);white-space:pre;overflow:hidden;position:relative;border:1px solid color-mix(in srgb,var(--t-border) 70%,transparent);font-variant-ligatures:none}
+.theme-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));margin-bottom:22px}
+.theme-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;transition:border-color .25s,transform .35s var(--ease)}
+.theme-card:hover{border-color:var(--line2);transform:translateY(-3px)}
+.theme-card h3{margin:0 0 8px!important;font:600 13px var(--mono)!important}
+.theme-card h3 code{color:var(--pa)!important;background:none!important;padding:0!important}
+.theme-card p{font-size:12.5px;margin-bottom:14px}
+.swatches{list-style:none;display:flex;flex-wrap:wrap;gap:10px;padding:0!important;margin-top:auto!important}
+.swatches li{display:flex;flex-direction:column;align-items:center;margin:0!important;width:68px}
+.sw{display:block;width:100%;height:34px;border-radius:8px;border:1px solid #ffffff26}
+.sw-name{font-size:10.5px;color:var(--txt);margin-top:5px;text-align:center;line-height:1.2}
+.sw-hex{font-size:10px;color:var(--mut)}
+.try{margin-top:14px;align-self:flex-start;font:11.5px var(--mono);color:var(--pa);background:transparent;border:1px solid color-mix(in srgb,var(--pa) 45%,transparent);border-radius:8px;padding:5px 12px;cursor:pointer;transition:background .2s}
+.try:hover{background:color-mix(in srgb,var(--pa) 14%,transparent)}
+details.tomlbox{margin:14px 0 0;max-width:100%}
+details.tomlbox summary{cursor:pointer;color:var(--pa);font-size:12px}
+details.tomlbox .code-block{margin-top:10px}
 
-    /* ── Polybar ── */
-    .polybar-section { border-top: 1px solid var(--border); }
-    .polybar-steps { display: flex; flex-direction: column; gap: 28px; }
-    .prereq-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
-    .chip {
-      display: inline-flex; align-items: center; gap: 6px;
-      font-family: var(--mono); font-size: 12px;
-      background: #111; border: 1px solid var(--border);
-      border-radius: 999px; padding: 4px 14px;
-      color: var(--accent2);
-    }
-    .mouse-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    .mouse-table th {
-      text-align: left; font-size: 11px; font-family: var(--mono);
-      color: var(--muted); letter-spacing: .08em; text-transform: uppercase;
-      padding: 0 12px 10px; border-bottom: 1px solid var(--border);
-    }
-    .mouse-table td {
-      padding: 10px 12px; font-size: 13px; color: var(--text);
-      border-bottom: 1px solid #1a1a1a;
-    }
-    .mouse-table tr:last-child td { border-bottom: none; }
-    .mouse-table td:first-child { font-family: var(--mono); color: var(--accent2); font-size: 12px; }
-    .polybar-preview {
-      background: #111;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 10px 18px;
-      font-family: var(--mono);
-      font-size: 12px;
-      color: #888;
-      display: flex; align-items: center; gap: 12px;
-      margin-top: 12px;
-    }
-    .polybar-preview .bar-label { color: var(--accent); font-size: 13px; }
-
-    /* ── Documentation sections ── */
-    :root { --muted-hi: #9a9a9a; }
-    .sr-only {
-      position: absolute; width: 1px; height: 1px; overflow: hidden;
-      clip: rect(0 0 0 0); white-space: nowrap;
-    }
-    .doc-section { border-top: 1px solid var(--border); }
-    .doc-section h3 {
-      font-size: 14px; color: var(--text-hi); font-weight: 600;
-      margin: 32px 0 12px;
-    }
-    .doc-section h3:first-of-type { margin-top: 0; }
-    .doc-section p, .doc-section li { font-size: 14px; color: var(--muted-hi); max-width: 680px; }
-    .doc-section p { margin-bottom: 14px; }
-    .doc-section ul.plain { padding-left: 20px; margin-bottom: 14px; }
-    .doc-section li { margin-bottom: 6px; }
-    .doc-section code, .inline-code {
-      font-family: var(--mono); font-size: 12px; color: var(--accent2);
-    }
-    .doc-section a:focus-visible, .copy-btn:focus-visible, .btn:focus-visible {
-      outline: 2px solid var(--accent); outline-offset: 2px;
-    }
-    .note {
-      border-left: 3px solid #2a4a2a; background: #0d1f0d;
-      border-radius: 0 var(--radius) var(--radius) 0;
-      padding: 10px 16px; margin: 0 0 16px; max-width: 680px;
-      font-size: 13px; color: var(--text);
-    }
-    .code-block.tall { align-items: flex-start; margin-bottom: 16px; }
-    .code-block.tall .copy-btn { margin-top: -2px; }
-    .doc-table { width: 100%; border-collapse: collapse; margin: 8px 0 20px; }
-    .doc-table th {
-      text-align: left; font-size: 11px; font-family: var(--mono);
-      color: var(--muted-hi); letter-spacing: .08em; text-transform: uppercase;
-      padding: 0 12px 10px; border-bottom: 1px solid var(--border);
-    }
-    .doc-table td {
-      padding: 9px 12px; font-size: 13px; color: var(--text);
-      border-bottom: 1px solid #1a1a1a; vertical-align: top;
-    }
-    .doc-table tr:last-child td { border-bottom: none; }
-    .doc-table td:first-child { white-space: nowrap; width: 12.5em; }
-    .doc-table.wide td:first-child { width: 16em; }
-    .table-wrap { overflow-x: auto; }
-    .style-grid {
-      display: grid; gap: 16px; margin-bottom: 16px;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    }
-    .style-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); overflow: hidden;
-    }
-    .style-card h3 { margin: 0; padding: 12px 18px; border-bottom: 1px solid var(--border); }
-    .style-card p { font-size: 13px; padding: 12px 18px 0; margin: 0; }
-    .style-card pre {
-      padding: 12px 18px 16px; font-family: var(--mono); font-size: 13px;
-      line-height: 1.15; color: var(--accent); overflow-x: auto;
-    }
-    .theme-grid {
-      display: grid; gap: 16px; margin-bottom: 20px;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    }
-    .theme-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 18px;
-    }
-    .theme-card h3 { margin: 0 0 8px; }
-    .theme-card p { font-size: 13px; margin-bottom: 12px; }
-    .swatches { list-style: none; display: flex; flex-wrap: wrap; gap: 10px; padding: 0; }
-    .swatches li { display: flex; flex-direction: column; align-items: center; margin: 0; width: 64px; }
-    .sw {
-      display: block; width: 40px; height: 40px; border-radius: 6px;
-      border: 1px solid #444;
-    }
-    .sw-name { font-size: 11px; color: var(--text); margin-top: 4px; text-align: center; line-height: 1.2; }
-    .sw-hex { font-family: var(--mono); font-size: 10px; color: var(--muted-hi); }
-    .keys-note { font-size: 13px; color: var(--muted-hi); margin-bottom: 16px; }
-
-    #player .control-row span:not(.kbd) { color: var(--muted-hi); font-size: 13px; }
-    #player .control-row .kbd { color: var(--accent2); }
+/* library, polybar */
+.chipline{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 22px}
+.chipline .pill{font-size:12px;border:1px solid var(--line2);border-radius:99px;padding:3px 14px;color:var(--pa);background:var(--panel)}
+.chipline .pill span{color:var(--mut)}
+.mini{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.mini h4{font:600 12.5px var(--mono);color:var(--hi);margin-bottom:4px}
+.mini p{font-size:12px;margin:0!important;color:var(--txt)}
+.mini .g{font:italic 400 1.5rem/1 var(--serif);color:var(--pa);display:block;margin-bottom:8px}
+.mouse-table{width:100%;border-collapse:collapse;min-width:440px}
+.mouse-table th{text-align:left;font:600 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mut);padding:12px 16px;border-bottom:1px solid var(--line)}
+.mouse-table td{padding:10px 16px;font-size:12.5px;color:var(--txt);border-bottom:1px solid #1c1915}
+.mouse-table tr:last-child td{border-bottom:0}
+.mouse-table td:first-child{color:var(--pa)}
+.polybar-preview{background:#0e0d0b;border:1px solid var(--line);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--txt);display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:14px}
+.polybar-preview .bar-label{color:var(--pa)}
+.polybar-preview .dim{color:var(--mut)}
+.stack{display:grid;gap:26px}
+.stack>.step{margin:0}
 
 
-    /* ── Footer ── */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 36px 0;
-      text-align: center;
-    }
-    footer p { font-size: 13px; color: var(--muted); line-height: 1.8; }
-    footer a { color: var(--muted); }
-    footer a:hover { color: var(--text); }
+/* changelog */
+.cl-r{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:0 0 18px;position:relative}
+.cl-r::before{content:"";position:absolute;left:-1px;top:24px;bottom:24px;width:3px;border-radius:3px;background:var(--pa);opacity:.7}
+.cl-un{border-style:dashed}
+.cl-rh{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px;margin-bottom:14px}
+.sec-body .cl-v{font:400 2rem/1 var(--serif);margin:0;color:var(--hi)}
+.cl-tag{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--pa);border:1px solid color-mix(in srgb,var(--pa) 50%,transparent);border-radius:99px;padding:1px 10px}
+.cl-d{color:var(--mut);font-size:12px}
+.cl-gh{margin-left:auto;font-size:12px}
+.cl-g{margin:14px 0 0}
+.sec-body .cl-gh{font:400 1em var(--mono);margin:0 0 8px;display:flex;align-items:center;gap:10px}
+.cl-chip{display:inline-flex;align-items:center;gap:7px;font:600 11px var(--mono);border-radius:99px;padding:2px 11px 2px 8px;color:var(--hi);background:color-mix(in srgb,var(--gc,var(--pa)) 20%,transparent);border:1px solid color-mix(in srgb,var(--gc,var(--pa)) 65%,transparent)}
+.cl-ic{color:var(--gc,var(--pa))}
+.cl-n{color:var(--mut);font-size:11px}
+.g-feat{--gc:var(--t-viz-low)}.g-fix{--gc:var(--t-viz-high)}.g-perf{--gc:var(--t-viz-mid)}.g-refactor{--gc:#b7a3e0}.g-docs{--gc:#8fc9a1}.g-style,.g-other,.g-chore{--gc:#b5ada0}.g-test{--gc:#8fc9a1}.g-build,.g-ci{--gc:#e0a878}.g-revert{--gc:#e08a8a}
+.cl-list{list-style:none;padding:0!important;margin:0}
+.sec-body .cl-c{margin:0 0 5px;padding-left:16px;position:relative;font-size:12.5px;max-width:none}
+.cl-c::before{content:"\203A";position:absolute;left:0;color:var(--gc,var(--pa))}
+.cl-scope{color:var(--mut)}
+.cl-h{margin-left:6px;font-size:11px;color:var(--mut);text-decoration:underline;text-decoration-color:var(--line2)}
+.cl-h:hover{color:var(--pa)}
+.cl-more a{color:var(--mut)}
+details.cl-other,details.cl-older{margin-top:16px}
+details.cl-other summary,details.cl-older summary{cursor:pointer;color:var(--pa);font-size:12.5px}
+details.cl-older{margin-top:22px}
+details.cl-older .cl-r{margin-top:14px}
+.cl-empty{border:1px dashed var(--line2);border-radius:12px;padding:18px 20px}
 
-    /* ── Divider ── */
-    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+/* footer */
+footer{border-top:1px solid var(--line);padding:64px 0 56px;text-align:center}
+.foot{max-width:1280px;margin:0 auto;padding:0 24px}
+.footer-brand{font:400 clamp(2.4rem,6vw,4.4rem)/1 var(--serif);color:var(--hi);letter-spacing:-.01em;margin-bottom:18px}
+.footer-brand em{color:var(--pa)}
+footer p{font-size:12px;color:var(--mut);line-height:2;margin:0 auto;max-width:none}
+footer a{color:var(--txt)}
+footer a:hover{color:var(--pa)}
+#footer-updated:empty{display:none}
 
-    /* ── Responsive ── */
-    @media (max-width: 560px) {
-      .hero { padding: 64px 0 48px; }
-      .hero h1 { font-size: 2rem; }
-      .nav-links { display: none; }
-    }
-  </style>
+/* motion */
+@keyframes rise{from{opacity:0;transform:translateY(20px);filter:blur(5px)}to{opacity:1;transform:none;filter:none}}
+@keyframes boot{0%{clip-path:inset(49% 0 49% 0);filter:brightness(2.4)}55%{clip-path:inset(0);filter:brightness(1.5)}100%{clip-path:inset(0);filter:none}}
+@keyframes sweep{from{transform:translateY(-120%)}to{transform:translateY(520%)}}
+.rise{animation:rise .95s var(--ease) both;animation-delay:calc(var(--i,0)*120ms)}
+.term-frame{animation:boot .9s .55s var(--ease) both}
+.term::before{content:"";position:absolute;left:0;right:0;top:0;height:18%;pointer-events:none;z-index:1;background:linear-gradient(transparent,color-mix(in srgb,var(--t-accent) 9%,transparent),transparent);animation:sweep 7s linear infinite}
+html.js .reveal{opacity:0;transform:translateY(24px);transition:opacity .8s var(--ease),transform .8s var(--ease);transition-delay:calc(var(--d,0)*70ms)}
+html.js .reveal.in{opacity:1;transform:none}
+
+@media(max-width:1100px){.wrap{gap:0 44px;grid-template-columns:minmax(170px,220px) minmax(0,1fr)}.feat,.feat.w5,.feat.w7{grid-column:span 6}}
+@media(max-width:960px){
+.hero-in{grid-template-columns:minmax(0,1fr)}
+.hero-copy,.demo-wrap{grid-column:1;grid-row:auto}
+.demo-wrap{margin-top:36px}
+.wrap{grid-template-columns:minmax(0,1fr)}
+.sec-head{position:static;margin-bottom:30px}
+.sec{padding:72px 0}
+.gh span{display:none}
+}
+@media(max-width:640px){
+.bar{padding:0 14px;gap:10px}
+.hero{padding-top:40px}
+.hero-in,.wrap,.foot{padding:0 16px}
+.feat,.feat.w5,.feat.w7{grid-column:1/-1}
+.step{grid-template-columns:minmax(0,1fr);gap:6px;padding:18px}
+.step-num{font-size:2.4rem}
+.term{padding:10px 8px 18px}
+.doc-table td:first-child{width:auto}
+.controls-grid{grid-template-columns:1fr 1fr}
+.control-row{padding:8px 10px;gap:8px;flex-wrap:wrap}
+.hint{position:static;display:inline-block;margin:8px 0 0 4px}
+}
+@media(max-width:400px){.controls-grid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){
+html{scroll-behavior:auto}
+*,*::before,*::after{animation:none!important;transition:none!important}
+html.js .reveal{opacity:1;transform:none}
+.term::before{display:none}
+}
+
+</style>
 </head>
 <body>
+<div class="atmo" aria-hidden="true"></div>
+<a class="skip" href="#main">Skip to content</a>
+<div id="copy-status" class="sr-only" role="status" aria-live="polite"></div>
 
-<!-- Nav -->
-<nav>
-  <div class="inner">
-    <span class="nav-brand">mfp</span>
-    <div class="nav-links">
+<header class="top">
+  <div class="bar">
+    <a class="brand" href="#top" aria-label="mfp, back to the top"><i aria-hidden="true"></i>mfp</a>
+    <nav class="menu" aria-label="Sections">
+      <a href="#features">Features</a>
       <a href="#install">Install</a>
       <a href="#usage">Usage</a>
       <a href="#player">Player</a>
@@ -483,193 +394,187 @@
       <a href="#themes">Themes</a>
       <a href="#config">Files</a>
       <a href="#plain">Text mode</a>
+      <a href="#library">Library</a>
       <a href="#polybar">Media keys</a>
-      <a href="https://github.com/4DRIAN0RTIZ/mfp">GitHub</a>
-    </div>
+      <a href="#changelog">What&rsquo;s new</a>
+    </nav>
+    <span class="ver" id="hero-badge-release" title="Latest release"></span>
+    <a class="gh" href="https://github.com/4DRIAN0RTIZ/mfp" target="_blank" rel="noopener" aria-label="mfp on GitHub">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span>GitHub</span>
+    </a>
   </div>
-</nav>
+</header>
 
-<!-- Hero -->
-<div class="container">
-  <div class="hero">
-    <div class="hero-badge"><span id="hero-badge-release"></span> Rust · GPL-3.0 · Linux &amp; macOS</div>
-    <h1><span>mfp</span> — Music For<br>Programming Player</h1>
-    <p>Lightweight terminal player for <a href="https://musicforprogramming.net/" target="_blank" rel="noopener">musicforprogramming.net</a>. Streams directly, no external dependencies, MPRIS support.</p>
-    <div class="hero-actions">
-      <a class="btn btn-primary" href="#install">Get started</a>
-      <a class="btn btn-ghost" href="https://github.com/4DRIAN0RTIZ/mfp" target="_blank" rel="noopener">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
-      </a>
-    </div>
-  </div>
+<main id="main">
+<section class="hero" id="top" aria-labelledby="h1">
+  <div class="hero-in">
+    <p class="eyebrow rise" style="--i:0"><b>mfp</b><span>Rust</span><span>GPL-3.0</span><span>Linux &amp; macOS</span></p>
+    <h1 id="h1" class="rise" style="--i:1">Music For Programming, <em>in your terminal.</em></h1>
 
-  <!-- Screenshot -->
-  <div class="screenshot-wrap">
-    <div class="screenshot-bar">
-      <span class="dot dot-red"></span>
-      <span class="dot dot-yellow"></span>
-      <span class="dot dot-green"></span>
-      <span>mfp play</span>
+    <div class="hero-copy rise" style="--i:3">
+      <p class="lead">Lightweight terminal player for <a href="https://musicforprogramming.net/" target="_blank" rel="noopener">musicforprogramming.net</a>. Streams directly, no external dependencies, MPRIS support.</p>
+      <div class="cta">
+        <a class="btn pri" href="#install">Get started</a>
+        <a class="btn" href="#player">Read the keys</a>
+      </div>
+      <dl class="spec">
+        <dt>Audio</dt><dd>MP3, FLAC, AAC, ALAC, Vorbis, WAV</dd>
+        <dt>Buffer</dt><dd>starts after 512 KB</dd>
+        <dt>Visualizer</dt><dd>six styles</dd>
+        <dt>Themes</dt><dd>six built-in, plus your own</dd>
+        <dt>Desktop</dt><dd>MPRIS media keys</dd>
+      </dl>
     </div>
-    <img src="mfp.png" alt="MFP terminal player screenshot" />
+
+    <div class="demo-wrap rise" style="--i:4">
+      <div class="term-frame" id="demo-frame">
+        <div class="term-bar" aria-hidden="true"><i></i><i></i><i></i><span>mfp</span></div>
+        <div class="term" id="demo" tabindex="0" role="group" aria-describedby="demo-hint" aria-label="Interactive mock of the mfp terminal player. An episode list is on the left; the player with title, progress bar, volume, shuffle state and MPRIS dot is on the right, with an animated audio visualizer below it. Click it and press v to change the visualizer style, V to turn it off, h to hide the list, p to pause. Sample episodes only.">
+          <pre class="screen" id="screen"><span class="b">┌</span><span class="ti"> mfp </span><span class="b">─────────────────────────────┬───────────────────────────────────────────────────</span><span class="b">┐</span>
+<span class="b">│</span> <span class="bd">Episodes (13)</span>                    <span class="b">│</span> <span class="ac">  ♪  </span><span class="bd">Episode 75</span>                                 <span class="fv"> </span> <span class="b">│</span>
+<span class="b">│</span> <span class="mk" data-i="0">  </span><span data-i="0">Episode 64</span><span data-i="0">                  </span><span class="fv" data-i="0">  </span> <span class="b">│</span> <span class="mu">     Duration 58:20</span>                               <span class="b">│</span>
+<span class="b">│</span> <span class="mk" data-i="1">  </span><span data-i="1">Episode 65</span><span data-i="1">                  </span><span class="fv" data-i="1">  </span> <span class="b">│</span>                                                   <span class="b">│</span>
+<span class="b">│</span> <span class="mk" data-i="2">  </span><span data-i="2">Episode 66</span><span data-i="2">                  </span><span class="fv" data-i="2"> ★</span> <span class="b">│</span> <span class="ac">  ▶  </span>12:06 <span class="pf">━━━━━╺</span><span class="pe">───────────────────────</span>  <span class="mu">58:20</span>   <span class="b">│</span>
+<span class="b">│</span> <span class="mk" data-i="3">  </span><span data-i="3">Episode 67</span><span data-i="3">                  </span><span class="fv" data-i="3">  </span> <span class="b">│</span> <span class="mu">  Vol </span><span class="vf">▮▮▮▮▮▮▮</span><span class="ve">▯▯▯</span> 70% <span class="mu">  Shuffle OFF</span><span class="mu">  MPRIS </span><span class="ok">●</span>       <span class="b">│</span>
+<span class="b">│</span> <span class="mk" data-i="4">  </span><span data-i="4">Episode 68</span><span data-i="4">                  </span><span class="fv" data-i="4">  </span> <span class="b">│</span>                                                   <span class="b">│</span>
+<span class="b">│</span> <span class="mk" data-i="5">  </span><span data-i="5">Episode 69</span><span data-i="5">                  </span><span class="fv" data-i="5">  </span> <span class="b">│</span>                                                   <span class="b">│</span>
+<span class="b">│</span> <span class="mk" data-i="6">  </span><span data-i="6">Episode 70</span><span data-i="6">                  </span><span class="fv" data-i="6">  </span> <span class="b">│</span>                                                   <span class="b">│</span>
+<span class="b">│</span> <span class="mk" data-i="7">  </span><span data-i="7">Episode 71</span><span data-i="7">                  </span><span class="fv" data-i="7">  </span> <span class="b">│</span>     <span class="v3">▃</span> <span class="v3">▅</span>                                           <span class="b">│</span>
+<span class="b">│</span> <span class="mk" data-i="8">  </span><span data-i="8">Episode 72</span><span data-i="8">                  </span><span class="fv" data-i="8"> ★</span> <span class="b">│</span>   <span class="v2">▃</span> <span class="v2">█</span> <span class="v2">█</span> <span class="v2">▇</span>                                         <span class="b">│</span>
+<span class="b">│</span> <span class="mk" data-i="9">  </span><span data-i="9">Episode 73</span><span data-i="9">                  </span><span class="fv" data-i="9">  </span> <span class="b">│</span> <span class="v1">▃</span> <span class="v1">█</span> <span class="v1">█</span> <span class="v1">█</span> <span class="v1">█</span> <span class="v1">▅</span>     <span class="v1">▃</span> <span class="v1">▆</span> <span class="v1">▇</span> <span class="v1">▂</span>           <span class="v1">▂</span>               <span class="b">│</span>
+<span class="b">│</span> <span class="mk" data-i="10">  </span><span data-i="10">Episode 74</span><span data-i="10">                  </span><span class="fv" data-i="10">  </span> <span class="b">│</span> <span class="v1">█</span> <span class="v1">█</span> <span class="v1">█</span> <span class="v1">█</span> <span class="v1">█</span> <span class="v1">█</span> <span class="v1">▅</span> <span class="v1">▇</span> <span class="v1">█</span> <span class="v1">█</span> <span class="v1">█</span> <span class="v1">█</span> <span class="v1">▅</span> <span class="v1">▂</span> <span class="v1">▃</span> <span class="v1">▆</span> <span class="v1">█</span> <span class="v1">█</span> <span class="v1">▃</span> <span class="v1">▂</span> <span class="v1">▃</span> <span class="v1">▃</span> <span class="v1">▄</span> <span class="v1">█</span> <span class="v1">█</span> <span class="b">│</span>
+<span class="b">│</span> <span class="sel" data-i="11">▶ </span><span class="sel bd" data-i="11">Episode 75</span><span class="sel" data-i="11">                  </span><span class="sel" data-i="11">  </span> <span class="b">│</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="v0">█</span> <span class="b">│</span>
+<span class="b">│</span> <span class="mk" data-i="12">  </span><span data-i="12">Episode 76</span><span data-i="12">                  </span><span class="fv" data-i="12">  </span> <span class="b">│</span>                                                   <span class="b">│</span>
+<span class="b">├──────────────────────────────────┴───────────────────────────────────────────────────┤</span>
+<span class="b">│</span>  <span class="hk">↑↓</span><span class="ht"> move</span>  <span class="hk">Enter</span><span class="ht"> play</span>  <span class="hk">/</span><span class="ht"> search</span>  <span class="hk">n</span><span class="ht"> next</span>  <span class="hk">p</span><span class="ht"> pause</span>  <span class="hk">h</span><span class="ht"> list</span>  <span class="hk">q</span><span class="ht"> quit</span>                      <span class="b">│</span>
+<span class="b">└──────────────────────────────────────────────────────────────────────────────────────┘</span></pre>
+          <span class="meas" id="meas" aria-hidden="true">MMMMMMMMMMMMMMMMMMMM</span>
+          <span class="hint" id="demo-hint"><span class="idle">click here, then press v</span><span class="live">keys on: v V h p n b s f m + - j k</span></span>
+        </div>
+      </div>
+      <div class="toolbar js-only" role="toolbar" aria-label="Demo controls (same as the keys)">
+        <button class="tb" type="button" data-k="v"><kbd>v</kbd><span id="v-label">style: bars</span></button>
+        <button class="tb" type="button" data-k="V" aria-pressed="true"><kbd>V</kbd>visualizer</button>
+        <button class="tb" type="button" data-k="h" aria-pressed="true"><kbd>h</kbd>list</button>
+        <button class="tb" type="button" data-k="p" aria-pressed="false"><kbd>p</kbd>pause</button>
+        <button class="tb" type="button" data-k="n"><kbd>n</kbd>next</button>
+        <button class="tb" type="button" data-k="s" aria-pressed="false"><kbd>s</kbd>shuffle</button>
+        <button class="tb" type="button" data-k="f" aria-pressed="false"><kbd>f</kbd>favorite</button>
+        <button class="tb" type="button" data-k="m" aria-pressed="false"><kbd>m</kbd>mute</button>
+      </div>
+      <fieldset class="themes js-only">
+        <legend>Theme: <span id="theme-now" style="text-transform:none;letter-spacing:0">gruvbox</span></legend>
+        <div class="chips">
+          <button class="chip" type="button" data-theme="default" aria-pressed="false"><span class="dots" aria-hidden="true"><b style="background:#1e1e1e"></b><b style="background:#3b8eea"></b><b style="background:#3b8eea"></b><b style="background:#3b8eea"></b><b style="background:#3b8eea"></b></span>default<small>terminal colors</small></button>
+          <button class="chip" type="button" data-theme="solarized" aria-pressed="false"><span class="dots" aria-hidden="true"><b style="background:#002b36"></b><b style="background:#268bd2"></b><b style="background:#2aa198"></b><b style="background:#b58900"></b><b style="background:#cb4b16"></b></span>solarized<small>built-in</small></button>
+          <button class="chip" type="button" data-theme="high-contrast" aria-pressed="false"><span class="dots" aria-hidden="true"><b style="background:#000000"></b><b style="background:#55ffff"></b><b style="background:#5555ff"></b><b style="background:#ffff55"></b><b style="background:#ff5555"></b></span>high-contrast<small>terminal colors</small></button>
+          <button class="chip" type="button" data-theme="gruvbox" aria-pressed="true"><span class="dots" aria-hidden="true"><b style="background:#282828"></b><b style="background:#fabd2f"></b><b style="background:#83a598"></b><b style="background:#fabd2f"></b><b style="background:#fb4934"></b></span>gruvbox<small>built-in</small></button>
+          <button class="chip" type="button" data-theme="nord" aria-pressed="false"><span class="dots" aria-hidden="true"><b style="background:#2e3440"></b><b style="background:#88c0d0"></b><b style="background:#5e81ac"></b><b style="background:#88c0d0"></b><b style="background:#ebcb8b"></b></span>nord<small>built-in</small></button>
+          <button class="chip" type="button" data-theme="dracula" aria-pressed="false"><span class="dots" aria-hidden="true"><b style="background:#282a36"></b><b style="background:#bd93f9"></b><b style="background:#8be9fd"></b><b style="background:#bd93f9"></b><b style="background:#ff79c6"></b></span>dracula<small>built-in</small></button>
+          <button class="chip" type="button" data-theme="onyx-gold" aria-pressed="false"><span class="dots" aria-hidden="true"><b style="background:#111212"></b><b style="background:#c5a85b"></b><b style="background:#8d9a91"></b><b style="background:#c5a85b"></b><b style="background:#b96b5f"></b></span>onyx-gold<small>custom</small></button>
+          <button class="chip" type="button" data-theme="synthwave" aria-pressed="false"><span class="dots" aria-hidden="true"><b style="background:#170b2f"></b><b style="background:#ff2bd6"></b><b style="background:#36f9f6"></b><b style="background:#ff2bd6"></b><b style="background:#fede5d"></b></span>synthwave<small>custom</small></button>
+        </div>
+      </fieldset>
+      <p class="demo-note js-only">A small mock with sample episodes and a made-up spectrum, drawn the way the real player draws its screen. The last two themes are custom theme files, to show what you can make. <a href="#themes">More about themes</a>.</p>
+    </div>
   </div>
+</section>
+
+<section id="features" class="sec " aria-labelledby="h-features">
+<div class="wrap">
+<header class="sec-head"><p class="label">01 / What it does</p><h2 id="h-features">Everything in the terminal</h2></header>
+<div class="sec-body">
+<div class="bento">
+<article class="feat w5"><span class="no" aria-hidden="true">01</span><h3>Progressive Streaming</h3><p>Starts playing after a 512 KB buffer — no waiting for the full episode to download.</p></article>
+<article class="feat w7 hl"><span class="no" aria-hidden="true">02</span><h3>Live Visualizer</h3><p>Six animated styles that move with the music. Switch with <code>v</code>, turn off with <code>V</code>. <a href="#visualizer">See the styles</a>.</p><pre class="pv" data-viz="area" role="img" aria-label="Sketch of a filled hill shape that follows the sound">   ▃▄▆▇▅
+ ▃▆█████▄▂
+▅█████████▇▃
+████████████
+████████████</pre></article>
+<article class="feat "><span class="no" aria-hidden="true">03</span><h3>Full Playback Controls</h3><p>A full-screen player with an episode list and search; play/pause, volume, mute, next, previous, shuffle — all from the keyboard while it runs.</p></article>
+<article class="feat "><span class="no" aria-hidden="true">04</span><h3>Color Themes</h3><p>Six built-in themes, or make your own with a small text file. <a href="#themes">Choose your colors</a>.</p></article>
+<article class="feat "><span class="no" aria-hidden="true">05</span><h3>MPRIS Integration</h3><p>Exposes D-Bus MPRIS so Polybar, KDE, GNOME, and any media client can see and control it.</p></article>
+<article class="feat "><span class="no" aria-hidden="true">06</span><h3>Save episodes to disk</h3><p>Save episodes to <code>~/.config/mfp/downloads/</code> with <code>d</code> or <code>mfp download</code>. mfp still streams episodes when you play them.</p></article>
+<article class="feat "><span class="no" aria-hidden="true">07</span><h3>Favorites</h3><p>Mark episodes as favorites and play only those, with or without shuffle.</p></article>
+<article class="feat "><span class="no" aria-hidden="true">08</span><h3>Zero External Deps</h3><p>Pure Rust audio pipeline — no mpv, no ffmpeg. MP3, FLAC, AAC, ALAC, Vorbis, WAV.</p></article>
 </div>
-
-<!-- Features -->
-<section id="features">
-  <div class="container">
-    <div class="section-label">What it does</div>
-    <h2>Everything in the terminal</h2>
-    <div class="features-grid">
-      <div class="feature-card">
-        <span class="feature-icon">⚡</span>
-        <h3>Progressive Streaming</h3>
-        <p>Starts playing after a 512 KB buffer — no waiting for the full episode to download.</p>
-      </div>
-      <div class="feature-card">
-        <span class="feature-icon">🎛</span>
-        <h3>Full Playback Controls</h3>
-        <p>A full-screen player with an episode list and search; play/pause, volume, mute, next, previous, shuffle — all from the keyboard while it runs.</p>
-      </div>
-      <div class="feature-card">
-        <span class="feature-icon">🎚</span>
-        <h3>Live Visualizer</h3>
-        <p>Six animated styles that move with the music. Switch with <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">v</code>, turn off with <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">V</code>. <a href="#visualizer">See the styles</a>.</p>
-      </div>
-      <div class="feature-card">
-        <span class="feature-icon">🎨</span>
-        <h3>Color Themes</h3>
-        <p>Six built-in themes, or make your own with a small text file. <a href="#themes">Choose your colors</a>.</p>
-      </div>
-      <div class="feature-card">
-        <span class="feature-icon">📡</span>
-        <h3>MPRIS Integration</h3>
-        <p>Exposes D-Bus MPRIS so Polybar, KDE, GNOME, and any media client can see and control it.</p>
-      </div>
-      <div class="feature-card">
-        <span class="feature-icon">💾</span>
-        <h3>Offline Downloads</h3>
-        <p>Save episodes to <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">~/.config/mfp/downloads/</code> with <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">d</code> or <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">mfp download</code>.</p>
-      </div>
-      <div class="feature-card">
-        <span class="feature-icon">⭐</span>
-        <h3>Favorites</h3>
-        <p>Mark episodes as favorites and play only those, with or without shuffle.</p>
-      </div>
-      <div class="feature-card">
-        <span class="feature-icon">📦</span>
-        <h3>Zero External Deps</h3>
-        <p>Pure Rust audio pipeline — no mpv, no ffmpeg. MP3, FLAC, AAC, ALAC, Vorbis, WAV.</p>
-      </div>
-    </div>
-  </div>
+</div>
+</div>
 </section>
-
-<hr class="divider" />
-
-<!-- Install -->
-<section id="install" class="install-section">
-  <div class="container">
-    <div class="section-label">Installation</div>
-    <h2>Get it running</h2>
-    <div class="install-steps">
-
-      <div class="install-step">
-        <div class="step-num">1</div>
-        <div class="step-body">
-          <h3>Clone &amp; build</h3>
-          <p>Requires Rust stable. The release profile strips debug info and optimizes for size (the binary is about 5 MB).</p>
-          <div class="code-block">
-            <code>git clone https://github.com/4DRIAN0RTIZ/mfp &amp;&amp; cd mfp
-cargo build --release</code>
-            <button class="copy-btn" onclick="copy(this, 'git clone https://github.com/4DRIAN0RTIZ/mfp && cd mfp\ncargo build --release')">copy</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="install-step">
-        <div class="step-num">2</div>
-        <div class="step-body">
-          <h3>Add to PATH (optional)</h3>
-          <p>Copy the binary system-wide so you can run <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">mfp</code> from anywhere.</p>
-          <div class="code-block">
-            <code>sudo cp target/release/mfp /usr/local/bin/</code>
-            <button class="copy-btn" onclick="copy(this, 'sudo cp target/release/mfp /usr/local/bin/')">copy</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="install-step">
-        <div class="step-num">3</div>
-        <div class="step-body">
-          <h3>Play</h3>
-          <p>Running <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">mfp</code> opens the full-screen player. It is the same as <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">mfp play</code>. Press <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">q</code> to quit. See <a href="#player">Using the player</a> for all the keys.</p>
-          <div class="code-block">
-            <code>mfp</code>
-            <button class="copy-btn" onclick="copy(this, 'mfp')">copy</button>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
+<section id="install" class="sec " aria-labelledby="h-install">
+<div class="wrap">
+<header class="sec-head"><p class="label">02 / Installation</p><h2 id="h-install">Get it running</h2></header>
+<div class="sec-body">
+<div class="steps">
+<div class="step"><div class="step-num" aria-hidden="true">1</div><div><h3><span class="sr-only">Step 1: </span>Clone &amp; build</h3><p>Requires Rust stable. The release profile strips debug info and optimizes for size (the binary is about 5 MB).</p><div class="code-block tall"><code>git clone https://github.com/4DRIAN0RTIZ/mfp &amp;&amp; cd mfp
+cargo build --release</code><button class="copy-btn" type="button" aria-label="Copy the build commands" onclick="copy(this, 'git clone https://github.com/4DRIAN0RTIZ/mfp &amp;&amp; cd mfp\ncargo build --release')">copy</button></div></div></div>
+<div class="step"><div class="step-num" aria-hidden="true">2</div><div><h3><span class="sr-only">Step 2: </span>Add to PATH (optional)</h3><p>Copy the binary system-wide so you can run <code>mfp</code> from anywhere.</p><div class="code-block"><code>sudo cp target/release/mfp /usr/local/bin/</code><button class="copy-btn" type="button" aria-label="Copy the install command" onclick="copy(this, 'sudo cp target/release/mfp /usr/local/bin/')">copy</button></div></div></div>
+<div class="step"><div class="step-num" aria-hidden="true">3</div><div><h3><span class="sr-only">Step 3: </span>Play</h3><p>Running <code>mfp</code> opens the full-screen player. It is the same as <code>mfp play</code>. Press <code>q</code> to quit. See <a href="#player">Using the player</a> for all the keys.</p><div class="code-block"><code>mfp</code><button class="copy-btn" type="button" aria-label="Copy the command" onclick="copy(this, 'mfp')">copy</button></div></div></div>
+</div>
+</div>
+</div>
 </section>
-
-<hr class="divider" />
-
-<!-- Usage -->
-<section id="usage" class="usage-section">
-  <div class="container">
-    <div class="section-label">Commands</div>
-    <h2>Quick reference</h2>
-    <div class="usage-grid">
-
-      <div class="usage-card">
-        <div class="usage-card-header">▶ Play</div>
-        <pre><span class="cmd">mfp</span>                       <span class="comment"># start the player</span>
-<span class="cmd">mfp play</span>                  <span class="comment"># same, first episode</span>
-<span class="cmd">mfp play</span> <span class="flag">-e 75</span>           <span class="comment"># specific episode</span>
-<span class="cmd">mfp play</span> <span class="flag">-s</span>              <span class="comment"># shuffle</span>
-<span class="cmd">mfp play</span> <span class="flag">-f</span>              <span class="comment"># favorites only</span>
-<span class="cmd">mfp play</span> <span class="flag">-f -s</span>           <span class="comment"># favorites + shuffle</span>
-<span class="cmd">mfp play</span> <span class="flag">--compact</span>       <span class="comment"># start with the list hidden</span>
-<span class="cmd">mfp play</span> <span class="flag">--plain</span>         <span class="comment"># text mode, type cmd + Enter</span></pre>
-      </div>
-
-      <div class="usage-card">
-        <div class="usage-card-header">★ Favorites</div>
-        <pre><span class="cmd">mfp fav</span> <span class="flag">-l</span>              <span class="comment"># list</span>
-<span class="cmd">mfp fav</span> <span class="flag">-a</span> "Episode 75" <span class="comment"># add</span>
-<span class="cmd">mfp fav</span> <span class="flag">-r</span> "Episode 75" <span class="comment"># remove</span></pre>
-      </div>
-
-      <div class="usage-card">
-        <div class="usage-card-header">⬇ Downloads</div>
-        <pre><span class="cmd">mfp download</span> <span class="flag">-e 75</span>       <span class="comment"># download ep</span>
-<span class="cmd">mfp download</span> <span class="flag">--list</span>      <span class="comment"># list cached</span>
-<span class="cmd">mfp download</span> <span class="flag">--size</span>      <span class="comment"># disk usage</span>
-<span class="cmd">mfp download</span> <span class="flag">--delete</span> … <span class="comment"># remove ep</span></pre>
-      </div>
-
-      <div class="usage-card">
-        <div class="usage-card-header">≡ List</div>
-        <pre><span class="cmd">mfp list</span>                  <span class="comment"># all episodes</span></pre>
-      </div>
-
-    </div>
-  </div>
+<section id="usage" class="sec " aria-labelledby="h-usage">
+<div class="wrap">
+<header class="sec-head"><p class="label">03 / Commands</p><h2 id="h-usage">Quick reference</h2></header>
+<div class="sec-body">
+<div class="usage-grid">
+<div class="usage-card"><div class="usage-card-header">▶ Play</div><pre><span class="cmd">mfp</span>  <span class="comment"># start the player</span>
+<span class="cmd">mfp play</span>  <span class="comment"># same thing</span>
+<span class="cmd">mfp play</span> <span class="flag">-e 75</span>  <span class="comment"># start at episode 75</span>
+<span class="cmd">mfp play</span> <span class="flag">--episode 75</span>  <span class="comment"># long form of -e</span>
+<span class="cmd">mfp play</span> <span class="flag">-s</span>  <span class="comment"># shuffle</span>
+<span class="cmd">mfp play</span> <span class="flag">--shuffle</span>  <span class="comment"># long form of -s</span>
+<span class="cmd">mfp play</span> <span class="flag">-f</span>  <span class="comment"># favorites only</span>
+<span class="cmd">mfp play</span> <span class="flag">--favorites</span>  <span class="comment"># long form of -f</span>
+<span class="cmd">mfp play</span> <span class="flag">-f -s</span>  <span class="comment"># favorites + shuffle</span>
+<span class="cmd">mfp play</span> <span class="flag">--compact</span>  <span class="comment"># start with the list hidden</span>
+<span class="cmd">mfp play</span> <span class="flag">--plain</span>  <span class="comment"># text mode, type a command + Enter</span></pre></div>
+<div class="usage-card"><div class="usage-card-header">★ Favorites</div><pre><span class="cmd">mfp fav</span> <span class="flag">-l</span>  <span class="comment"># list</span>
+<span class="cmd">mfp fav</span> <span class="flag">--list</span>  <span class="comment"># long form of -l</span>
+<span class="cmd">mfp fav</span> <span class="flag">-a "Episode 75"</span>  <span class="comment"># add</span>
+<span class="cmd">mfp fav</span> <span class="flag">--add "Episode 75"</span>  <span class="comment"># long form of -a</span>
+<span class="cmd">mfp fav</span> <span class="flag">-r "Episode 75"</span>  <span class="comment"># remove</span>
+<span class="cmd">mfp fav</span> <span class="flag">--remove "Episode 75"</span>  <span class="comment"># long form of -r</span></pre></div>
+<div class="usage-card"><div class="usage-card-header">⬇ Downloads</div><pre><span class="cmd">mfp download</span> <span class="flag">-e 75</span>  <span class="comment"># download an episode</span>
+<span class="cmd">mfp download</span> <span class="flag">--episode 75</span>  <span class="comment"># long form of -e</span>
+<span class="cmd">mfp download</span> <span class="flag">-l</span>  <span class="comment"># list what you downloaded</span>
+<span class="cmd">mfp download</span> <span class="flag">--list</span>  <span class="comment"># long form of -l</span>
+<span class="cmd">mfp download</span> <span class="flag">-s</span>  <span class="comment"># disk usage</span>
+<span class="cmd">mfp download</span> <span class="flag">--size</span>  <span class="comment"># long form of -s</span>
+<span class="cmd">mfp download</span> <span class="flag">-d "Episode 75"</span>  <span class="comment"># delete a download</span>
+<span class="cmd">mfp download</span> <span class="flag">--delete "Episode 75"</span>  <span class="comment"># long form of -d</span></pre></div>
+<div class="usage-card"><div class="usage-card-header">≡ List, help and version</div><pre><span class="cmd">mfp list</span>  <span class="comment"># all episodes</span>
+<span class="cmd">mfp --help</span>  <span class="comment"># all options (short: -h)</span>
+<span class="cmd">mfp play --help</span>  <span class="comment"># options of one command</span>
+<span class="cmd">mfp --version</span>  <span class="comment"># show the version (short: -V)</span></pre></div>
+</div>
+<h3>Options of <code>mfp</code> and <code>mfp play</code></h3>
+<p>Running <code>mfp</code> with no command is the same as <code>mfp play</code> and accepts the same options.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table of play options, scrolls sideways on small screens">
+<table class="doc-table wide">
+<caption class="sr-only">Options of mfp play</caption>
+<thead><tr><th scope="col">Option</th><th scope="col">What it does</th></tr></thead>
+<tbody>
+<tr><td><code>-e</code>, <code>--episode &lt;N&gt;</code></td><td>Start at this episode number (for example <code>75</code>). It starts at the first episode titled &ldquo;Episode N&hellip;&rdquo;; a plain text match, so <code>1</code> also matches &ldquo;Episode 12&rdquo;. If nothing matches, it starts at the beginning.</td></tr>
+<tr><td><code>-s</code>, <code>--shuffle</code></td><td>Shuffle the playlist. Toggle it at any time with <code>s</code>.</td></tr>
+<tr><td><code>-f</code>, <code>--favorites</code></td><td>Play only your favorites (see <code>mfp fav</code>).</td></tr>
+<tr><td><code>--plain</code></td><td>Use the plain text mode instead of the full-screen player. <a href="#plain">More about text mode</a>.</td></tr>
+<tr><td><code>--compact</code></td><td>Start with the episode list hidden (player only). It cannot be combined with <code>--plain</code>.</td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>Show help.</td></tr>
+<tr><td><code>-V</code>, <code>--version</code></td><td>Show the version.</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
 </section>
-
-<hr class="divider" />
-
-<!-- Player -->
-<section id="player" class="doc-section">
-  <div class="container">
-    <div class="section-label">Using the player</div>
-    <h2 id="controls">What you see and what to press</h2>
-
-    <h3>The screen</h3>
+<section id="player" class="sec " aria-labelledby="controls">
+<div class="wrap">
+<header class="sec-head"><p class="label">04 / Using the player</p><h2 id="controls">What you see and what to press</h2></header>
+<div class="sec-body">
+<h3>The screen</h3>
     <p>When you run <code>mfp</code> it fills your terminal window. On a normal-sized window you get two panels side by side:</p>
     <ul class="plain">
       <li><strong>Episodes (left).</strong> The full list of episodes. A <code>▶</code> marks the one that is playing and a <code>★</code> marks your favorites.</li>
@@ -699,9 +604,9 @@ cargo build --release</code>
       <div class="control-row" role="listitem"><span class="kbd">V</span><span>Visualizer on / off</span></div>
       <div class="control-row" role="listitem"><span class="kbd">↑ ↓</span><span>Move in the list</span></div>
       <div class="control-row" role="listitem"><span class="kbd">j k</span><span>Move down / up (same as arrows)</span></div>
-      <div class="control-row" role="listitem"><span class="kbd">PgUp PgDn</span><span>Move a page at a time</span></div>
-      <div class="control-row" role="listitem"><span class="kbd">Home g</span><span>Jump to the first episode</span></div>
-      <div class="control-row" role="listitem"><span class="kbd">End G</span><span>Jump to the last episode</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">Page Up</span><span class="kbd">Page Down</span><span>Move a page at a time</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">Home</span><span class="kbd">g</span><span>Jump to the first episode</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">End</span><span class="kbd">G</span><span>Jump to the last episode</span></div>
       <div class="control-row" role="listitem"><span class="kbd">Enter</span><span>Play the highlighted episode</span></div>
       <div class="control-row" role="listitem"><span class="kbd">/</span><span>Search episodes</span></div>
       <div class="control-row" role="listitem"><span class="kbd">q</span><span>Quit</span></div>
@@ -709,26 +614,23 @@ cargo build --release</code>
     </div>
 
     <h3>Searching</h3>
-    <p>Press <code>/</code> and start typing: the list narrows down as you type. While you are typing, letters go into the search box, so they will not trigger the keys above. Press <code>Enter</code> to keep the filtered list, or <code>Esc</code> to clear the search. The arrows, <code>PgUp</code>/<code>PgDn</code>, <code>Home</code> and <code>End</code> still move the selection while you search, and <code>Ctrl+C</code> always quits.</p>
+    <p>Press <code>/</code> and start typing: the list narrows down as you type. While you are typing, letters go into the search box, so they will not trigger the keys above. Press <code>Enter</code> to keep the filtered list, or <code>Esc</code> to clear the search. The arrows, <code>Page Up</code>/<code>Page Down</code>, <code>Home</code> and <code>End</code> still move the selection while you search, and <code>Ctrl+C</code> always quits.</p>
     <p>The list keys (moving, <code>Enter</code>, <code>/</code>) only work while the episode list is shown.</p>
-  </div>
+</div>
+</div>
 </section>
-
-<hr class="divider" />
-
-<!-- Visualizer -->
-<section id="visualizer" class="doc-section">
-  <div class="container">
-    <div class="section-label">Visualizer</div>
-    <h2>Watch the music move</h2>
-    <p>While an episode plays, mfp draws the sound as a live animation under the player. It reacts to what you are hearing: bass on the left, treble on the right. When you pause, it settles down to nothing. It only listens; it never changes the audio.</p>
+<section id="visualizer" class="sec " aria-labelledby="h-visualizer">
+<div class="wrap">
+<header class="sec-head"><p class="label">05 / Visualizer</p><h2 id="h-visualizer">Watch the music move</h2></header>
+<div class="sec-body">
+<p>While an episode plays, mfp draws the sound as a live animation under the player. It reacts to what you are hearing: bass on the left, treble on the right. When you pause, it settles down to nothing. It only listens; it never changes the audio.</p>
     <p>Press <code>v</code> to switch to the next style, and <code>V</code> to turn the animation off or on. If it is off, <code>v</code> turns it on again with the next style. In the compact view the visualizer is shown when the window is at least 13 rows tall.</p>
 
     <div class="style-grid">
       <div class="style-card">
         <h3><code>bars</code></h3>
         <p>Classic vertical bars. This is the default.</p>
-<pre role="img" aria-label="Sketch of vertical bars of different heights">      █
+<pre class="pv" data-viz="bars" role="img" aria-label="Sketch of vertical bars of different heights">      █
   ▃   █ ▅
 ▂ █ ▅ █ █ ▇   ▂
 █ █ █ █ █ █ ▄ █
@@ -737,7 +639,7 @@ cargo build --release</code>
       <div class="style-card">
         <h3><code>mirror</code></h3>
         <p>Bars that grow up and down from a middle line.</p>
-<pre role="img" aria-label="Sketch of bars mirrored above and below a center line">    ▂   █
+<pre class="pv" data-viz="mirror" role="img" aria-label="Sketch of bars mirrored above and below a center line">    ▂   █
 ▃ █ █ █ █ ▅
 █ █ █ █ █ █ █
 █ █ █ █ █ █ █
@@ -747,14 +649,14 @@ cargo build --release</code>
       <div class="style-card">
         <h3><code>wave</code></h3>
         <p>A wavy line, like an oscilloscope, drawn with tiny dots.</p>
-<pre role="img" aria-label="Sketch of a wavy line">      ⣀⡠⡀    ⢀
+<pre class="pv" data-viz="wave" role="img" aria-label="Sketch of a wavy line">      ⣀⡠⡀    ⢀
 ⠑⠒⠉⠉⢆  ⢀⠔⠢⡀  ⣀⢄⡠⠊
      ⠉⠉⠁  ⠈⠉⠉</pre>
       </div>
       <div class="style-card">
         <h3><code>dots</code></h3>
         <p>Columns of dots with a small marker that lingers at the highest point.</p>
-<pre role="img" aria-label="Sketch of columns of dots with markers on top">  ▪   ▪
+<pre class="pv" data-viz="dots" role="img" aria-label="Sketch of columns of dots with markers on top">  ▪   ▪
 ▪ · ▪ · ▪
 · · · · · ▪
 · · · · · · ▪
@@ -763,7 +665,7 @@ cargo build --release</code>
       <div class="style-card">
         <h3><code>area</code></h3>
         <p>A smooth filled shape that follows the sound.</p>
-<pre role="img" aria-label="Sketch of a filled hill shape">   ▃▄▆▇▅
+<pre class="pv" data-viz="area" role="img" aria-label="Sketch of a filled hill shape">   ▃▄▆▇▅
  ▃▆█████▄▂
 ▅█████████▇▃
 ████████████
@@ -772,7 +674,7 @@ cargo build --release</code>
       <div class="style-card">
         <h3><code>vu</code></h3>
         <p>Two level meters, one for the left speaker and one for the right.</p>
-<pre role="img" aria-label="Sketch of two horizontal level meters, L and R">L ▮▮▮▮▮▮▮▮▮▮▮▮▯▯▯▯▯▯
+<pre class="pv" data-viz="vu" role="img" aria-label="Sketch of two horizontal level meters, L and R">L ▮▮▮▮▮▮▮▮▮▮▮▮▯▯▯▯▯▯
 
 R ▮▮▮▮▮▮▮▮▮▮▮▮▮▯▯▯▯▯</pre>
       </div>
@@ -788,50 +690,122 @@ enabled = true     # false starts with the visualizer off</code>
       <button class="copy-btn" aria-label="Copy the visualizer settings" onclick="copy(this, this.previousElementSibling.textContent)">copy</button>
     </div>
     <p>If the style name is not recognized, mfp starts with <code>bars</code> and writes a note to its <a href="#config">log file</a>.</p>
-  </div>
+</div>
+</div>
 </section>
-
-<hr class="divider" />
-
-<!-- Themes -->
-<section id="themes" class="doc-section">
-  <div class="container">
-    <div class="section-label">Themes and colors</div>
-    <h2>Make it look the way you like</h2>
-    <p>mfp comes with six color themes. You choose one in the <a href="#config">config file</a>; there is deliberately no key to change the theme while listening, so a stray key press never repaints your screen.</p>
+<section id="themes" class="sec " aria-labelledby="h-themes">
+<div class="wrap">
+<header class="sec-head"><p class="label">06 / Themes and colors</p><h2 id="h-themes">Make it look the way you like</h2></header>
+<div class="sec-body">
+<p>mfp comes with six color themes. You choose one in the <a href="#config">config file</a>; there is deliberately no key to change the theme while listening, so a stray key press never repaints your screen.</p>
 
     <h3>The built-in themes</h3>
     <div class="theme-grid">
       <div class="theme-card">
         <h3><code>default</code></h3>
         <p>The original look. Uses your terminal's own colors with a blue highlight, so it fits both dark and light terminals. This is what you get if you choose nothing.</p>
-      </div>
+      <button class="try js-only" type="button" data-theme="default">Preview in the demo &uarr;</button></div>
       <div class="theme-card">
         <h3><code>solarized</code></h3>
         <p>Calm blue-green tones on a dark teal background.</p>
         <ul class="swatches" aria-label="Main colors of the solarized theme"><li><span class="sw" role="img" aria-label="Background: #002b36" style="background:#002b36"></span><span class="sw-name">Background</span><span class="sw-hex">#002b36</span></li><li><span class="sw" role="img" aria-label="Text: #839496" style="background:#839496"></span><span class="sw-name">Text</span><span class="sw-hex">#839496</span></li><li><span class="sw" role="img" aria-label="Accent: #268bd2" style="background:#268bd2"></span><span class="sw-name">Accent</span><span class="sw-hex">#268bd2</span></li><li><span class="sw" role="img" aria-label="Low levels: #2aa198" style="background:#2aa198"></span><span class="sw-name">Low levels</span><span class="sw-hex">#2aa198</span></li><li><span class="sw" role="img" aria-label="Mid levels: #b58900" style="background:#b58900"></span><span class="sw-name">Mid levels</span><span class="sw-hex">#b58900</span></li><li><span class="sw" role="img" aria-label="High levels: #cb4b16" style="background:#cb4b16"></span><span class="sw-name">High levels</span><span class="sw-hex">#cb4b16</span></li></ul>
-      </div>
+      <button class="try js-only" type="button" data-theme="solarized">Preview in the demo &uarr;</button></div>
       <div class="theme-card">
         <h3><code>high-contrast</code></h3>
         <p>Plain black and white with bright colors, easy to read on any screen. Uses your terminal's own basic colors (its black, white, bright cyan and so on), so the exact shades depend on your terminal.</p>
-      </div>
+      <button class="try js-only" type="button" data-theme="high-contrast">Preview in the demo &uarr;</button></div>
       <div class="theme-card">
         <h3><code>gruvbox</code></h3>
         <p>Warm, earthy colors with a yellow highlight.</p>
         <ul class="swatches" aria-label="Main colors of the gruvbox theme"><li><span class="sw" role="img" aria-label="Background: #282828" style="background:#282828"></span><span class="sw-name">Background</span><span class="sw-hex">#282828</span></li><li><span class="sw" role="img" aria-label="Text: #ebdbb2" style="background:#ebdbb2"></span><span class="sw-name">Text</span><span class="sw-hex">#ebdbb2</span></li><li><span class="sw" role="img" aria-label="Accent: #fabd2f" style="background:#fabd2f"></span><span class="sw-name">Accent</span><span class="sw-hex">#fabd2f</span></li><li><span class="sw" role="img" aria-label="Low levels: #83a598" style="background:#83a598"></span><span class="sw-name">Low levels</span><span class="sw-hex">#83a598</span></li><li><span class="sw" role="img" aria-label="Mid levels: #fabd2f" style="background:#fabd2f"></span><span class="sw-name">Mid levels</span><span class="sw-hex">#fabd2f</span></li><li><span class="sw" role="img" aria-label="High levels: #fb4934" style="background:#fb4934"></span><span class="sw-name">High levels</span><span class="sw-hex">#fb4934</span></li></ul>
-      </div>
+      <button class="try js-only" type="button" data-theme="gruvbox">Preview in the demo &uarr;</button></div>
       <div class="theme-card">
         <h3><code>nord</code></h3>
         <p>Cool, muted arctic blues.</p>
         <ul class="swatches" aria-label="Main colors of the nord theme"><li><span class="sw" role="img" aria-label="Background: #2e3440" style="background:#2e3440"></span><span class="sw-name">Background</span><span class="sw-hex">#2e3440</span></li><li><span class="sw" role="img" aria-label="Text: #d8dee9" style="background:#d8dee9"></span><span class="sw-name">Text</span><span class="sw-hex">#d8dee9</span></li><li><span class="sw" role="img" aria-label="Accent: #88c0d0" style="background:#88c0d0"></span><span class="sw-name">Accent</span><span class="sw-hex">#88c0d0</span></li><li><span class="sw" role="img" aria-label="Low levels: #5e81ac" style="background:#5e81ac"></span><span class="sw-name">Low levels</span><span class="sw-hex">#5e81ac</span></li><li><span class="sw" role="img" aria-label="Mid levels: #88c0d0" style="background:#88c0d0"></span><span class="sw-name">Mid levels</span><span class="sw-hex">#88c0d0</span></li><li><span class="sw" role="img" aria-label="High levels: #ebcb8b" style="background:#ebcb8b"></span><span class="sw-name">High levels</span><span class="sw-hex">#ebcb8b</span></li></ul>
-      </div>
+      <button class="try js-only" type="button" data-theme="nord">Preview in the demo &uarr;</button></div>
       <div class="theme-card">
         <h3><code>dracula</code></h3>
         <p>Dark purple background with pink and cyan accents.</p>
         <ul class="swatches" aria-label="Main colors of the dracula theme"><li><span class="sw" role="img" aria-label="Background: #282a36" style="background:#282a36"></span><span class="sw-name">Background</span><span class="sw-hex">#282a36</span></li><li><span class="sw" role="img" aria-label="Text: #f8f8f2" style="background:#f8f8f2"></span><span class="sw-name">Text</span><span class="sw-hex">#f8f8f2</span></li><li><span class="sw" role="img" aria-label="Accent: #bd93f9" style="background:#bd93f9"></span><span class="sw-name">Accent</span><span class="sw-hex">#bd93f9</span></li><li><span class="sw" role="img" aria-label="Low levels: #8be9fd" style="background:#8be9fd"></span><span class="sw-name">Low levels</span><span class="sw-hex">#8be9fd</span></li><li><span class="sw" role="img" aria-label="Mid levels: #bd93f9" style="background:#bd93f9"></span><span class="sw-name">Mid levels</span><span class="sw-hex">#bd93f9</span></li><li><span class="sw" role="img" aria-label="High levels: #ff79c6" style="background:#ff79c6"></span><span class="sw-name">High levels</span><span class="sw-hex">#ff79c6</span></li></ul>
-      </div>
+      <button class="try js-only" type="button" data-theme="dracula">Preview in the demo &uarr;</button></div>
     </div>
 
+
+    <h3>Two custom looks</h3>
+    <p>The last two chips in the demo are not built in: they are theme files, like the ones in &ldquo;Make your own theme&rdquo; below, with every color set. Open one to see the whole file.</p>
+    <div class="theme-grid">
+      <div class="theme-card">
+        <h3><code>onyx-gold</code></h3>
+        <p>Soot-black onyx with aged gold and sage greens.</p>
+        <ul class="swatches" aria-label="Main colors of the onyx-gold theme"><li><span class="sw" role="img" aria-label="Background: #111212" style="background:#111212"></span><span class="sw-name">Background</span><span class="sw-hex">#111212</span></li><li><span class="sw" role="img" aria-label="Text: #e7e0cf" style="background:#e7e0cf"></span><span class="sw-name">Text</span><span class="sw-hex">#e7e0cf</span></li><li><span class="sw" role="img" aria-label="Accent: #c5a85b" style="background:#c5a85b"></span><span class="sw-name">Accent</span><span class="sw-hex">#c5a85b</span></li><li><span class="sw" role="img" aria-label="Low levels: #8d9a91" style="background:#8d9a91"></span><span class="sw-name">Low levels</span><span class="sw-hex">#8d9a91</span></li><li><span class="sw" role="img" aria-label="Mid levels: #c5a85b" style="background:#c5a85b"></span><span class="sw-name">Mid levels</span><span class="sw-hex">#c5a85b</span></li><li><span class="sw" role="img" aria-label="High levels: #b96b5f" style="background:#b96b5f"></span><span class="sw-name">High levels</span><span class="sw-hex">#b96b5f</span></li></ul>
+        <button class="try js-only" type="button" data-theme="onyx-gold">Preview in the demo &uarr;</button>
+        <details class="tomlbox"><summary>See the theme file</summary><div class="code-block tall"><code># ~/.config/mfp/themes/onyx-gold.toml
+background = "#111212"
+foreground = "#e7e0cf"
+accent = "#c5a85b"
+muted = "#898b80"
+border = "#3c3d38"
+success = "#9aa06b"
+danger = "#b96b5f"
+status_text = "#e7e0cf"
+help_key = "#c5a85b"
+help_text = "#898b80"
+selection_bg = "#c5a85b"
+selection_fg = "#111212"
+playing_marker = "#9aa06b"
+favorite = "#dbc078"
+progress_filled = "#c5a85b"
+progress_empty = "#3c3d38"
+volume_filled = "#9fae9b"
+volume_empty = "#3c3d38"
+viz_low = "#8d9a91"
+viz_mid = "#c5a85b"
+viz_high = "#b96b5f"
+viz_peak = "#f4edda"
+viz_dim = "#3c3d38"
+viz_wave = "#9fae9b"
+viz_vu_ok = "#9aa06b"
+viz_vu_warn = "#dbc078"
+viz_vu_clip = "#b96b5f"
+viz_vu_hold = "#f4edda"</code><button class="copy-btn" type="button" aria-label="Copy the onyx-gold theme file" onclick="copy(this, '# ~/.config/mfp/themes/onyx-gold.toml\nbackground = &quot;#111212&quot;\nforeground = &quot;#e7e0cf&quot;\naccent = &quot;#c5a85b&quot;\nmuted = &quot;#898b80&quot;\nborder = &quot;#3c3d38&quot;\nsuccess = &quot;#9aa06b&quot;\ndanger = &quot;#b96b5f&quot;\nstatus_text = &quot;#e7e0cf&quot;\nhelp_key = &quot;#c5a85b&quot;\nhelp_text = &quot;#898b80&quot;\nselection_bg = &quot;#c5a85b&quot;\nselection_fg = &quot;#111212&quot;\nplaying_marker = &quot;#9aa06b&quot;\nfavorite = &quot;#dbc078&quot;\nprogress_filled = &quot;#c5a85b&quot;\nprogress_empty = &quot;#3c3d38&quot;\nvolume_filled = &quot;#9fae9b&quot;\nvolume_empty = &quot;#3c3d38&quot;\nviz_low = &quot;#8d9a91&quot;\nviz_mid = &quot;#c5a85b&quot;\nviz_high = &quot;#b96b5f&quot;\nviz_peak = &quot;#f4edda&quot;\nviz_dim = &quot;#3c3d38&quot;\nviz_wave = &quot;#9fae9b&quot;\nviz_vu_ok = &quot;#9aa06b&quot;\nviz_vu_warn = &quot;#dbc078&quot;\nviz_vu_clip = &quot;#b96b5f&quot;\nviz_vu_hold = &quot;#f4edda&quot;')">copy</button></div></details>
+      </div>
+      <div class="theme-card">
+        <h3><code>synthwave</code></h3>
+        <p>Deep violet night with neon magenta, cyan and yellow.</p>
+        <ul class="swatches" aria-label="Main colors of the synthwave theme"><li><span class="sw" role="img" aria-label="Background: #170b2f" style="background:#170b2f"></span><span class="sw-name">Background</span><span class="sw-hex">#170b2f</span></li><li><span class="sw" role="img" aria-label="Text: #f8e7ff" style="background:#f8e7ff"></span><span class="sw-name">Text</span><span class="sw-hex">#f8e7ff</span></li><li><span class="sw" role="img" aria-label="Accent: #ff2bd6" style="background:#ff2bd6"></span><span class="sw-name">Accent</span><span class="sw-hex">#ff2bd6</span></li><li><span class="sw" role="img" aria-label="Low levels: #36f9f6" style="background:#36f9f6"></span><span class="sw-name">Low levels</span><span class="sw-hex">#36f9f6</span></li><li><span class="sw" role="img" aria-label="Mid levels: #ff2bd6" style="background:#ff2bd6"></span><span class="sw-name">Mid levels</span><span class="sw-hex">#ff2bd6</span></li><li><span class="sw" role="img" aria-label="High levels: #fede5d" style="background:#fede5d"></span><span class="sw-name">High levels</span><span class="sw-hex">#fede5d</span></li></ul>
+        <button class="try js-only" type="button" data-theme="synthwave">Preview in the demo &uarr;</button>
+        <details class="tomlbox"><summary>See the theme file</summary><div class="code-block tall"><code># ~/.config/mfp/themes/synthwave.toml
+background = "#170b2f"
+foreground = "#f8e7ff"
+accent = "#ff2bd6"
+muted = "#b893ce"
+border = "#4b2a73"
+success = "#72f1b8"
+danger = "#ff3864"
+status_text = "#f8e7ff"
+help_key = "#36f9f6"
+help_text = "#b893ce"
+selection_bg = "#ff2bd6"
+selection_fg = "#170b2f"
+playing_marker = "#fede5d"
+favorite = "#fede5d"
+progress_filled = "#ff2bd6"
+progress_empty = "#4b2a73"
+volume_filled = "#36f9f6"
+volume_empty = "#4b2a73"
+viz_low = "#36f9f6"
+viz_mid = "#ff2bd6"
+viz_high = "#fede5d"
+viz_peak = "#ffffff"
+viz_dim = "#4b2a73"
+viz_wave = "#36f9f6"
+viz_vu_ok = "#72f1b8"
+viz_vu_warn = "#fede5d"
+viz_vu_clip = "#ff3864"
+viz_vu_hold = "#ffffff"</code><button class="copy-btn" type="button" aria-label="Copy the synthwave theme file" onclick="copy(this, '# ~/.config/mfp/themes/synthwave.toml\nbackground = &quot;#170b2f&quot;\nforeground = &quot;#f8e7ff&quot;\naccent = &quot;#ff2bd6&quot;\nmuted = &quot;#b893ce&quot;\nborder = &quot;#4b2a73&quot;\nsuccess = &quot;#72f1b8&quot;\ndanger = &quot;#ff3864&quot;\nstatus_text = &quot;#f8e7ff&quot;\nhelp_key = &quot;#36f9f6&quot;\nhelp_text = &quot;#b893ce&quot;\nselection_bg = &quot;#ff2bd6&quot;\nselection_fg = &quot;#170b2f&quot;\nplaying_marker = &quot;#fede5d&quot;\nfavorite = &quot;#fede5d&quot;\nprogress_filled = &quot;#ff2bd6&quot;\nprogress_empty = &quot;#4b2a73&quot;\nvolume_filled = &quot;#36f9f6&quot;\nvolume_empty = &quot;#4b2a73&quot;\nviz_low = &quot;#36f9f6&quot;\nviz_mid = &quot;#ff2bd6&quot;\nviz_high = &quot;#fede5d&quot;\nviz_peak = &quot;#ffffff&quot;\nviz_dim = &quot;#4b2a73&quot;\nviz_wave = &quot;#36f9f6&quot;\nviz_vu_ok = &quot;#72f1b8&quot;\nviz_vu_warn = &quot;#fede5d&quot;\nviz_vu_clip = &quot;#ff3864&quot;\nviz_vu_hold = &quot;#ffffff&quot;')">copy</button></div></details>
+      </div>
+    </div>
     <h3>Choose a theme</h3>
     <p>Create the file <code>~/.config/mfp/config.toml</code> (create the folder if it does not exist yet) with the name of the theme:</p>
     <div class="code-block tall">
@@ -933,17 +907,14 @@ active = "midnight"</code>
     <h3>If something is wrong</h3>
     <p>mfp never refuses to start because of a theme. If the theme file is missing, has a typo in an option name, uses a color it does not understand, or names a base that is not built in, mfp shows the <code>default</code> look and writes the reason to its <a href="#config">log file</a>. The same goes for a config file it cannot read: it uses the defaults and logs why. Look at the log if your theme does not appear.</p>
     <p class="note">Tip: if you copy the example above and nothing changes, check the spelling of the option names. An unknown name makes the whole theme file fail, not just that line.</p>
-  </div>
+</div>
+</div>
 </section>
-
-<hr class="divider" />
-
-<!-- Configuration and files -->
-<section id="config" class="doc-section">
-  <div class="container">
-    <div class="section-label">Configuration and files</div>
-    <h2>Where things live</h2>
-    <p>Everything mfp saves is kept in one folder, <code>~/.config/mfp/</code>. If you have set <code>$XDG_CONFIG_HOME</code>, mfp uses <code>$XDG_CONFIG_HOME/mfp/</code> instead.</p>
+<section id="config" class="sec " aria-labelledby="h-config">
+<div class="wrap">
+<header class="sec-head"><p class="label">07 / Configuration and files</p><h2 id="h-config">Where things live</h2></header>
+<div class="sec-body">
+<p>Everything mfp saves is kept in one folder, <code>~/.config/mfp/</code>. If you have set <code>$XDG_CONFIG_HOME</code>, mfp uses <code>$XDG_CONFIG_HOME/mfp/</code> instead.</p>
     <div class="table-wrap">
     <table class="doc-table">
       <caption class="sr-only">Files and folders used by mfp</caption>
@@ -959,17 +930,14 @@ active = "midnight"</code>
     </div>
     <p class="note">mfp only reads <code>config.toml</code> and your theme files. It never edits or creates them, so your own comments and formatting are safe. Changes you make with <code>v</code> and <code>V</code> last until you quit; to keep them, edit the file yourself.</p>
     <p>Settings are read once, when mfp starts. Restart it after editing the files.</p>
-  </div>
+</div>
+</div>
 </section>
-
-<hr class="divider" />
-
-<!-- Plain text mode -->
-<section id="plain" class="doc-section">
-  <div class="container">
-    <div class="section-label">Text mode</div>
-    <h2>Plain text mode and pipes</h2>
-    <p>Prefer the original, simple interface? Run <code>mfp play --plain</code>. Instead of a full-screen window, mfp prints status lines and waits for you to type a command and press <code>Enter</code>.</p>
+<section id="plain" class="sec " aria-labelledby="h-plain">
+<div class="wrap">
+<header class="sec-head"><p class="label">08 / Text mode</p><h2 id="h-plain">Plain text mode and pipes</h2></header>
+<div class="sec-body">
+<p>Prefer the original, simple interface? Run <code>mfp play --plain</code>. Instead of a full-screen window, mfp prints status lines and waits for you to type a command and press <code>Enter</code>.</p>
     <div class="code-block">
       <code>mfp play --plain</code>
       <button class="copy-btn" aria-label="Copy the command" onclick="copy(this, 'mfp play --plain')">copy</button>
@@ -996,39 +964,35 @@ active = "midnight"</code>
     <p>Text mode has no visualizer and no themes. The options <code>-e</code>, <code>-s</code> and <code>-f</code> work here too, but <code>--compact</code> does not (it belongs to the full-screen player).</p>
 
     <h3>Automatic fallback</h3>
-    <p>mfp switches to text mode by itself when it cannot draw a full-screen window: when its input or output is redirected (for example <code>mfp play | cat</code> or a script) or the terminal type is <code>dumb</code>. Typing just <code>mfp</code> in that situation only prints a short overview of the commands, so music never starts by surprise.</p>
+    <p>mfp switches to text mode by itself when it cannot draw a full-screen window: when its input or output is redirected or piped (for example <code>mfp play | cat</code>, or when a script runs it), or when your terminal says it is &ldquo;dumb&rdquo; (<code>TERM=dumb</code>, used by some minimal environments). Typing just <code>mfp</code> in that situation only prints a short overview of the commands, so music never starts by surprise.</p>
     <p>You can also feed it commands from another program. When the input is redirected, each line is read as a command, and the moving progress line is not drawn. If that input ends, the music keeps playing (closing the input is not a request to quit). Send <code>q</code> before it ends to quit, or stop it with <code>Ctrl+C</code> or your media keys.</p>
     <div class="code-block">
       <code>printf 'i\nq\n' | mfp play</code>
       <button class="copy-btn" aria-label="Copy the example" onclick="copy(this, 'printf \'i\\nq\\n\' | mfp play')">copy</button>
     </div>
-  </div>
+</div>
+</div>
 </section>
-
-<hr class="divider" />
-
-<!-- Favorites, downloads and list -->
-<section id="library" class="doc-section">
-  <div class="container">
-    <div class="section-label">Your library</div>
-    <h2>Favorites, downloads and the episode list</h2>
-
-    <h3>Favorites</h3>
+<section id="library" class="sec " aria-labelledby="h-library">
+<div class="wrap">
+<header class="sec-head"><p class="label">09 / Your library</p><h2 id="h-library">Favorites, downloads and the episode list</h2></header>
+<div class="sec-body">
+<h3>Favorites</h3>
     <p>Press <code>f</code> in the player to mark the current episode with a star, or manage them from the command line. To listen to only your favorites, start with <code>mfp play -f</code>.</p>
     <div class="code-block tall">
-      <code>mfp fav -l                 # show your favorites
-mfp fav -a "Episode 75"    # add one
-mfp fav -r "Episode 75"    # remove one</code>
+      <code>mfp fav -l                 # show your favorites (--list)
+mfp fav -a "Episode 75"    # add one (--add)
+mfp fav -r "Episode 75"    # remove one (--remove)</code>
       <button class="copy-btn" aria-label="Copy the favorites commands" onclick="copy(this, this.previousElementSibling.textContent)">copy</button>
     </div>
 
     <h3>Downloads</h3>
     <p>Press <code>d</code> in the player, or use the command line, to save an episode in the <code>downloads</code> folder (see <a href="#config">Files</a>). mfp still streams episodes when you play them.</p>
     <div class="code-block tall">
-      <code>mfp download -e 75         # download episode 75
-mfp download -l            # list what you have downloaded
-mfp download -s            # how much disk space it uses
-mfp download -d "Episode 75"   # delete a download</code>
+      <code>mfp download -e 75         # download episode 75 (--episode)
+mfp download -l            # list what you have downloaded (--list)
+mfp download -s            # how much disk space it uses (--size)
+mfp download -d "Episode 75"   # delete a download (--delete)</code>
       <button class="copy-btn" aria-label="Copy the download commands" onclick="copy(this, this.previousElementSibling.textContent)">copy</button>
     </div>
 
@@ -1038,203 +1002,386 @@ mfp download -d "Episode 75"   # delete a download</code>
       <code>mfp list</code>
       <button class="copy-btn" aria-label="Copy the command" onclick="copy(this, 'mfp list')">copy</button>
     </div>
-  </div>
+</div>
+</div>
 </section>
+<section id="polybar" class="sec " aria-labelledby="h-polybar">
+<div class="wrap">
+<header class="sec-head"><p class="label">10 / Media keys and integrations</p><h2 id="h-polybar">Media keys, MPRIS &amp; Polybar</h2></header>
+<div class="sec-body">
+<p>mfp plays nicely with the rest of your desktop. While it runs, your keyboard's media keys (play/pause, next, previous), the media widget of your desktop, and panel widgets such as Polybar or Waybar can see and control it. You can also control it from a script with <code>playerctl</code>. If your system does not support this, mfp keeps playing and just leaves the connection off (the dot in the player stays empty).</p>
+<div class="code-block"><code>playerctl -p org.mpris.MediaPlayer2.mfp play-pause</code><button class="copy-btn" type="button" aria-label="Copy the playerctl command" onclick="copy(this, 'playerctl -p org.mpris.MediaPlayer2.mfp play-pause')">copy</button></div>
+<p>MFP exposes a D-Bus MPRIS interface as <code>org.mpris.MediaPlayer2.mfp</code>. Any MPRIS-compatible client can control it — Polybar, Waybar, KDE, GNOME Shell, playerctl, AGS, eww, and more.</p>
 
-<hr class="divider" />
-
-
-<!-- Polybar -->
-<section id="polybar" class="polybar-section">
-  <div class="container">
-    <div class="section-label">Media keys and integrations</div>
-    <h2>Media keys, MPRIS &amp; Polybar</h2>
-
-    <p style="font-size:14px;color:var(--muted-hi);margin-bottom:24px;max-width:680px">
-      mfp plays nicely with the rest of your desktop. While it runs, your keyboard's media keys (play/pause, next, previous), the media widget of your desktop, and panel widgets such as Polybar or Waybar can see and control it. You can also control it from a script with <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">playerctl</code>. If your system does not support this, mfp keeps playing and just leaves the connection off (the dot in the player stays empty).
-    </p>
-    <div class="code-block" style="margin-bottom:32px">
-      <code>playerctl -p org.mpris.MediaPlayer2.mfp play-pause</code>
-      <button class="copy-btn" aria-label="Copy the playerctl command" onclick="copy(this, 'playerctl -p org.mpris.MediaPlayer2.mfp play-pause')">copy</button>
-    </div>
-
-    <p style="font-size:13px;color:var(--muted);margin-bottom:36px;max-width:600px">
-      MFP exposes a D-Bus MPRIS interface as <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">org.mpris.MediaPlayer2.mfp</code>.
-      Any MPRIS-compatible client can control it — Polybar, Waybar, KDE, GNOME Shell, playerctl, AGS, eww, and more.
-    </p>
-
-    <!-- Generic MPRIS clients -->
-    <div style="margin-bottom:40px">
-      <h3 style="font-size:14px;color:var(--text-hi);margin-bottom:16px;font-weight:600">Any MPRIS client</h3>
-      <div class="features-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:20px">
-        <div class="feature-card" style="padding:16px">
-          <span class="feature-icon" style="font-size:1rem;margin-bottom:8px">🎵</span>
-          <h3 style="font-size:13px">KDE / Plasma</h3>
-          <p style="font-size:12px">Media widget picks it up automatically.</p>
-        </div>
-        <div class="feature-card" style="padding:16px">
-          <span class="feature-icon" style="font-size:1rem;margin-bottom:8px">🐚</span>
-          <h3 style="font-size:13px">GNOME Shell</h3>
-          <p style="font-size:12px">System media controls in the top bar.</p>
-        </div>
-        <div class="feature-card" style="padding:16px">
-          <span class="feature-icon" style="font-size:1rem;margin-bottom:8px">📊</span>
-          <h3 style="font-size:13px">Waybar</h3>
-          <p style="font-size:12px">Use the built-in <code style="font-size:11px">mpris</code> module.</p>
-        </div>
-        <div class="feature-card" style="padding:16px">
-          <span class="feature-icon" style="font-size:1rem;margin-bottom:8px">⌨️</span>
-          <h3 style="font-size:13px">playerctl</h3>
-          <p style="font-size:12px">Full CLI control from any script.</p>
-        </div>
-      </div>
-      <div class="usage-card">
-        <div class="usage-card-header">playerctl — quick reference</div>
-        <pre><span class="comment"># target mfp specifically</span>
+<h3>Any MPRIS client</h3>
+<div class="mini-grid">
+<div class="mini"><span class="g" aria-hidden="true">♪</span><h4>KDE / Plasma</h4><p>Media widget picks it up automatically.</p></div>
+<div class="mini"><span class="g" aria-hidden="true">≋</span><h4>GNOME Shell</h4><p>System media controls in the top bar.</p></div>
+<div class="mini"><span class="g" aria-hidden="true">▤</span><h4>Waybar</h4><p>Use the built-in <code>mpris</code> module.</p></div>
+<div class="mini"><span class="g" aria-hidden="true">›_</span><h4>playerctl</h4><p>Full CLI control from any script.</p></div>
+</div>
+<div class="usage-card mt"><div class="usage-card-header">playerctl — quick reference</div><pre><span class="comment"># target mfp specifically</span>
 <span class="cmd">playerctl</span> <span class="flag">--player=org.mpris.MediaPlayer2.mfp</span> play-pause
 <span class="cmd">playerctl</span> <span class="flag">--player=org.mpris.MediaPlayer2.mfp</span> next
 <span class="cmd">playerctl</span> <span class="flag">--player=org.mpris.MediaPlayer2.mfp</span> previous
 <span class="cmd">playerctl</span> <span class="flag">--player=org.mpris.MediaPlayer2.mfp</span> volume 0.1+
-<span class="cmd">playerctl</span> <span class="flag">--player=org.mpris.MediaPlayer2.mfp</span> metadata xesam:title</pre>
-      </div>
-    </div>
+<span class="cmd">playerctl</span> <span class="flag">--player=org.mpris.MediaPlayer2.mfp</span> metadata xesam:title</pre></div>
 
-    <h3 style="font-size:14px;color:var(--text-hi);margin-bottom:20px;font-weight:600">Polybar module</h3>
-
-    <p style="font-size:13px;color:var(--muted);margin-bottom:28px;max-width:560px">
-      Always-visible module — shows current episode while playing, stays in the bar when idle.
-      Controls via mouse clicks, no extra daemon needed.
-    </p>
-
-    <div class="prereq-chips">
-      <span class="chip">playerctl</span>
-      <span class="chip">rofi <span style="color:var(--muted)">(optional — context menu)</span></span>
-    </div>
-
-    <div class="polybar-steps">
-
-      <!-- Step 1 -->
-      <div class="install-step">
-        <div class="step-num">1</div>
-        <div class="step-body">
-          <h3>Copy scripts</h3>
-          <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Two scripts handle status polling and click actions.</p>
-          <div class="code-block" style="flex-direction:column;align-items:flex-start;gap:6px">
-            <code style="white-space:pre">mkdir -p ~/.config/polybar/scripts
+<h3>Polybar module</h3>
+<p>Always-visible module — shows current episode while playing, stays in the bar when idle. Controls via mouse clicks, no extra daemon needed.</p>
+<div class="chipline"><span class="pill">playerctl</span><span class="pill">rofi <span>(optional — context menu)</span></span></div>
+<div class="stack">
+<div class="step"><div class="step-num" aria-hidden="true">1</div><div><h3><span class="sr-only">Step 1: </span>Copy scripts</h3><p>Two scripts handle status polling and click actions.</p><div class="code-block tall"><code>mkdir -p ~/.config/polybar/scripts
 curl -sLo ~/.config/polybar/scripts/mfp-status-v2.sh \
   https://raw.githubusercontent.com/4DRIAN0RTIZ/mfp/main/contrib/polybar/scripts/mfp-status-v2.sh
 curl -sLo ~/.config/polybar/scripts/mfp-action.sh \
   https://raw.githubusercontent.com/4DRIAN0RTIZ/mfp/main/contrib/polybar/scripts/mfp-action.sh
-chmod +x ~/.config/polybar/scripts/mfp-*.sh</code>
-          </div>
-        </div>
-      </div>
+chmod +x ~/.config/polybar/scripts/mfp-*.sh</code><button class="copy-btn" type="button" aria-label="Copy the script download commands" onclick="copy(this, 'mkdir -p ~/.config/polybar/scripts\ncurl -sLo ~/.config/polybar/scripts/mfp-status-v2.sh \\\n  https://raw.githubusercontent.com/4DRIAN0RTIZ/mfp/main/contrib/polybar/scripts/mfp-status-v2.sh\ncurl -sLo ~/.config/polybar/scripts/mfp-action.sh \\\n  https://raw.githubusercontent.com/4DRIAN0RTIZ/mfp/main/contrib/polybar/scripts/mfp-action.sh\nchmod +x ~/.config/polybar/scripts/mfp-*.sh')">copy</button></div></div></div>
+<div class="step"><div class="step-num" aria-hidden="true">2</div><div><h3><span class="sr-only">Step 2: </span>Add module to polybar config</h3><p>Paste this block into your <code>config.ini</code>, then add <code>mpris</code> to <code>modules-left</code> / <code>modules-right</code>.</p><div class="usage-card"><div class="usage-card-header">config.ini</div><pre>[module/mpris]
+<span class="flag">type</span>        = custom/script
+<span class="flag">exec</span>        = ~/.config/polybar/scripts/mfp-status-v2.sh
+<span class="flag">interval</span>    = 2
+<span class="flag">format</span>      = &lt;label&gt;
+<span class="flag">label</span>       = %output%
+<span class="flag">click-left</span>  = ~/.config/polybar/scripts/mfp-action.sh left
+<span class="flag">click-right</span> = ~/.config/polybar/scripts/mfp-action.sh right
+<span class="flag">click-middle</span>= ~/.config/polybar/scripts/mfp-action.sh middle
+<span class="flag">scroll-up</span>   = ~/.config/polybar/scripts/mfp-action.sh scroll-up
+<span class="flag">scroll-down</span> = ~/.config/polybar/scripts/mfp-action.sh scroll-down</pre></div></div></div>
+<div class="step"><div class="step-num" aria-hidden="true">?</div><div><h3>Mouse actions</h3>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Mouse actions table, scrolls sideways on small screens"><table class="mouse-table">
+<thead><tr><th scope="col">Button</th><th scope="col">MFP running</th><th scope="col">MFP stopped</th></tr></thead>
+<tbody>
+<tr><td>Left click</td><td>Play / Pause</td><td>Launch mfp play</td></tr>
+<tr><td>Right click</td><td>rofi context menu</td><td>rofi → Start option</td></tr>
+<tr><td>Middle click</td><td>Next episode</td><td>Launch with shuffle</td></tr>
+<tr><td>Scroll up</td><td>Volume +5%</td><td>—</td></tr>
+<tr><td>Scroll down</td><td>Volume −5%</td><td>—</td></tr>
+</tbody></table></div>
+<div class="polybar-preview"><span class="dim">modules-right =</span><span>bspwm</span><span class="bar-label">mpris</span><span>cpu memory network battery</span></div>
+</div></div>
+</div>
 
-      <!-- Step 2 -->
-      <div class="install-step">
-        <div class="step-num">2</div>
-        <div class="step-body">
-          <h3>Add module to polybar config</h3>
-          <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Paste this block into your <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">config.ini</code>, then add <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">mpris</code> to <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">modules-left</code> / <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">modules-right</code>.</p>
-          <div class="usage-card">
-            <div class="usage-card-header">config.ini</div>
-            <pre style="color:var(--text)">[module/mpris]
-<span class="flag">type</span>         = custom/script
-<span class="flag">exec</span>         = ~/.config/polybar/scripts/mfp-status-v2.sh
-<span class="flag">interval</span>     = 2
-<span class="flag">format</span>       = &lt;label&gt;
-<span class="flag">label</span>        = %output%
-<span class="flag">click-left</span>   = ~/.config/polybar/scripts/mfp-action.sh left
-<span class="flag">click-right</span>  = ~/.config/polybar/scripts/mfp-action.sh right
-<span class="flag">click-middle</span> = ~/.config/polybar/scripts/mfp-action.sh middle
-<span class="flag">scroll-up</span>    = ~/.config/polybar/scripts/mfp-action.sh scroll-up
-<span class="flag">scroll-down</span>  = ~/.config/polybar/scripts/mfp-action.sh scroll-down</pre>
-          </div>
-        </div>
-      </div>
-
-      <!-- Mouse actions -->
-      <div class="install-step">
-        <div class="step-num" style="background:transparent;border-color:var(--border);color:var(--muted)">?</div>
-        <div class="step-body">
-          <h3>Mouse actions</h3>
-          <div class="usage-card" style="margin-top:0">
-            <table class="mouse-table">
-              <thead>
-                <tr><th>Button</th><th>MFP running</th><th>MFP stopped</th></tr>
-              </thead>
-              <tbody>
-                <tr><td>Left click</td><td>Play / Pause</td><td>Launch mfp play</td></tr>
-                <tr><td>Right click</td><td>rofi context menu</td><td>rofi → Start option</td></tr>
-                <tr><td>Middle click</td><td>Next episode</td><td>Launch with shuffle</td></tr>
-                <tr><td>Scroll up</td><td>Volume +5%</td><td>—</td></tr>
-                <tr><td>Scroll down</td><td>Volume −5%</td><td>—</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="polybar-preview">
-            <span style="color:var(--muted)">modules-right =</span>
-            <span>bspwm</span>
-            <span class="bar-label">mpris</span>
-            <span>cpu memory network battery</span>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Waybar -->
-    <div style="margin-top:40px">
-      <h3 style="font-size:14px;color:var(--text-hi);margin-bottom:16px;font-weight:600">Waybar module</h3>
-      <div class="usage-card">
-        <div class="usage-card-header">config (Waybar)</div>
-        <pre style="color:var(--text)">"mpris": {
+<h3>Waybar module</h3>
+<div class="usage-card"><div class="usage-card-header">config (Waybar)</div><pre>"mpris": {
     <span class="flag">"format"</span>: "{player_icon} {title}",
     <span class="flag">"format-paused"</span>: " {title}",
     <span class="flag">"player-icons"</span>: { "mfp": "" },
     <span class="flag">"status-icons"</span>: { "paused": "" }
-}</pre>
-      </div>
-      <p style="font-size:12px;color:var(--muted);margin-top:10px">Add <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">"mpris"</code> to your <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">modules-left/center/right</code> array.</p>
-    </div>
-
-  </div>
+}</pre></div>
+<p>Add <code>"mpris"</code> to your <code>modules-left/center/right</code> array.</p>
+</div>
+</div>
 </section>
+<section id="changelog" class="sec " aria-labelledby="h-changelog">
+<div class="wrap">
+<header class="sec-head"><p class="label">11 / Release notes</p><h2 id="h-changelog">What&rsquo;s new</h2></header>
+<div class="sec-body">
+<div id="changelog-body"><p class="cl-empty">Release notes are loaded with JavaScript. <a href="https://github.com/4DRIAN0RTIZ/mfp/releases" target="_blank" rel="noopener">All releases on GitHub</a></p></div>
+</div>
+</div>
+</section>
+</main>
 
-<!-- Footer -->
 <footer>
-  <div class="container">
+  <div class="foot">
+    <div class="footer-brand">{ <em>mfp</em> }</div>
     <p>
-      <strong style="color:var(--text-hi)">mfp</strong> — built with Rust ·
-      <a href="https://github.com/4DRIAN0RTIZ/mfp" target="_blank" rel="noopener">source</a> ·
-      <a href="https://github.com/4DRIAN0RTIZ/mfp/blob/main/LICENSE" target="_blank" rel="noopener">GPL-3.0</a>
+      Created by <a href="https://github.com/4DRIAN0RTIZ" target="_blank" rel="noopener">4DRIAN0RTIZ</a> ·
+      <a href="https://cuevaneander.tech" target="_blank" rel="noopener">La Cueva del NeanderTech</a> ·
+      <a href="https://github.com/4DRIAN0RTIZ/mfp" target="_blank" rel="noopener">GitHub</a>
     </p>
-    <p style="margin-top:6px">Audio from <a href="https://musicforprogramming.net/" target="_blank" rel="noopener">musicforprogramming.net</a></p>
+    <p>Built with Rust · <a href="https://github.com/4DRIAN0RTIZ/mfp/blob/main/LICENSE" target="_blank" rel="noopener">GPL-3.0</a> · Audio from <a href="https://musicforprogramming.net/" target="_blank" rel="noopener">musicforprogramming.net</a></p>
+    <p id="footer-updated"></p>
   </div>
 </footer>
 
 <script>
-  async function loadReleaseVersion() {
-    try {
-      const res = await fetch('changelog.json');
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const releases = await res.json();
-      const version = releases.find(r => r.version)?.version;
-      const badge = document.getElementById('hero-badge-release');
-      if (version && badge) badge.textContent = version + ' ·';
-    } catch (error) {
-      console.error('Error fetching changelog.json:', error);
-    }
-  }
-  loadReleaseVersion();
+(()=>{
+'use strict';
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const RM=matchMedia('(prefers-reduced-motion: reduce)');
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+/* ---- all user-visible strings generated by JS (English) ---- */
+const STRINGS={
+ msgViz:'Visualizer: {style}',msgVizOn:'Visualizer on',msgVizOff:'Visualizer off',msgNarrow:'Window too narrow for the list',
+ msgPaused:'Paused',msgPlaying:'Playing',msgShuffleOn:'Shuffle on',msgShuffleOff:'Shuffle off',msgFavAdd:'Added to favorites',msgFavDel:'Removed from favorites',msgMute:'Muted',msgUnmute:'Unmuted',
+ styleLabel:'style: {style}',themeNoteTerm:'{name} (representative colors; the real theme uses your terminal’s own)',themeNote:'{name}',
+ episode:'Episode {n}',episodes:'Episodes ({n})',duration:'Duration {time}',vol:'Vol',shuffle:'Shuffle',on:'ON',off:'OFF',mpris:'MPRIS',
+ help:{move:'move',play:'play',search:'search',next:'next',back:'back',pause:'pause',shuffle:'shuffle',fav:'fav',mute:'mute',vol:'vol',download:'download',list:'list',viz:'viz',quit:'quit'},
+ copied:'copied',copiedStatus:'Copied to clipboard',updated:'Last updated: {date}',
+ clUnreleased:'Unreleased',clComing:'Coming next',clOlder:'Show older releases',clOther:'Other changes',clMore:'and {n} more',clRelease:'Release {version} on GitHub',clCommit:'commit {hash}',
+ clEmpty:'Release notes will appear here once the first release is published.',clFailed:'Couldn’t load the latest notes.',clAll:'All releases on GitHub',
+ groups:{Features:'Features','Bug Fixes':'Bug Fixes',Performance:'Performance',Refactor:'Refactor',Documentation:'Documentation',Style:'Style',Testing:'Testing',Build:'Build',CI:'CI',Chore:'Chore',Revert:'Revert',Other:'Other'}
+};
+const tr=(k,o)=>String(STRINGS[k]).replace(/\{(\w+)\}/g,(m,n)=>o&&n in o?o[n]:m);
+const fmtDate=ts=>new Date(ts*1000).toISOString().slice(0,10);
 
-  function copy(btn, text) {
-    navigator.clipboard.writeText(text).then(() => {
-      btn.textContent = 'copied';
-      btn.classList.add('copied');
-      setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1800);
-    });
-  }
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+/* ---- theme table (same data as the swatches in the Themes section) ---- */
+const KEYS=["background","foreground","accent","muted","border","success","danger","status_text","help_key","help_text","selection_bg","selection_fg","playing_marker","favorite","progress_filled","progress_empty","volume_filled","volume_empty","viz_low","viz_mid","viz_high","viz_peak","viz_dim","viz_wave","viz_vu_ok","viz_vu_warn","viz_vu_clip","viz_vu_hold"];
+const TH=[["default","terminal colors",["#1e1e1e","#d4d4d4","#3b8eea","#8a8a8a","#6b6b6b","#23d18b","#f14c4c","#d4d4d4","#3b8eea","#8a8a8a","#d4d4d4","#1e1e1e","#3b8eea","#e5e510","#3b8eea","#3b8eea","#3b8eea","#3b8eea","#3b8eea","#3b8eea","#3b8eea","#3b8eea","#6b6b6b","#3b8eea","#3b8eea","#3b8eea","#3b8eea","#3b8eea"]],["solarized","built-in",["#002b36","#839496","#268bd2","#586e75","#586e75","#859900","#dc322f","#839496","#2aa198","#586e75","#073642","#93a1a1","#2aa198","#b58900","#268bd2","#586e75","#2aa198","#586e75","#2aa198","#b58900","#cb4b16","#eee8d5","#586e75","#2aa198","#859900","#b58900","#dc322f","#eee8d5"]],["high-contrast","terminal colors",["#000000","#ffffff","#55ffff","#ffffff","#ffffff","#55ff55","#ff5555","#ffffff","#ffff55","#ffffff","#ffffff","#000000","#ffff55","#ffff55","#55ffff","#ffffff","#55ffff","#ffffff","#5555ff","#ffff55","#ff5555","#ffffff","#ffffff","#55ffff","#55ff55","#ffff55","#ff5555","#ffffff"]],["gruvbox","built-in",["#282828","#ebdbb2","#fabd2f","#928374","#665c54","#b8bb26","#fb4934","#ebdbb2","#fe8019","#a89984","#504945","#ebdbb2","#b8bb26","#fabd2f","#fabd2f","#504945","#8ec07c","#504945","#83a598","#fabd2f","#fb4934","#ebdbb2","#665c54","#8ec07c","#b8bb26","#fabd2f","#fb4934","#ebdbb2"]],["nord","built-in",["#2e3440","#d8dee9","#88c0d0","#616e88","#4c566a","#a3be8c","#bf616a","#d8dee9","#88c0d0","#616e88","#434c5e","#eceff4","#88c0d0","#ebcb8b","#88c0d0","#434c5e","#81a1c1","#434c5e","#5e81ac","#88c0d0","#ebcb8b","#eceff4","#4c566a","#88c0d0","#a3be8c","#ebcb8b","#bf616a","#eceff4"]],["dracula","built-in",["#282a36","#f8f8f2","#bd93f9","#6272a4","#44475a","#50fa7b","#ff5555","#f8f8f2","#ff79c6","#6272a4","#44475a","#f8f8f2","#50fa7b","#f1fa8c","#bd93f9","#44475a","#ff79c6","#44475a","#8be9fd","#bd93f9","#ff79c6","#f8f8f2","#44475a","#8be9fd","#50fa7b","#f1fa8c","#ff5555","#f8f8f2"]],["onyx-gold","custom",["#111212","#e7e0cf","#c5a85b","#898b80","#3c3d38","#9aa06b","#b96b5f","#e7e0cf","#c5a85b","#898b80","#c5a85b","#111212","#9aa06b","#dbc078","#c5a85b","#3c3d38","#9fae9b","#3c3d38","#8d9a91","#c5a85b","#b96b5f","#f4edda","#3c3d38","#9fae9b","#9aa06b","#dbc078","#b96b5f","#f4edda"]],["synthwave","custom",["#170b2f","#f8e7ff","#ff2bd6","#b893ce","#4b2a73","#72f1b8","#ff3864","#f8e7ff","#36f9f6","#b893ce","#ff2bd6","#170b2f","#fede5d","#fede5d","#ff2bd6","#4b2a73","#36f9f6","#4b2a73","#36f9f6","#ff2bd6","#fede5d","#ffffff","#4b2a73","#36f9f6","#72f1b8","#fede5d","#ff3864","#ffffff"]]];
+const THEMES={};TH.forEach(([n,kind,v])=>{THEMES[n]={kind,v:Object.fromEntries(KEYS.map((k,i)=>[k,v[i]]))}});
+const cv=k=>'--t-'+k.replace(/_/g,'-');
+try{KEYS.forEach(k=>CSS.registerProperty({name:cv(k),syntax:'<color>',inherits:true,initialValue:'#000'}))}catch(e){}
+
+/* ---- demo state ---- */
+const STY=['bars','mirror','wave','dots','area','vu'];
+const EP0=64,NEP=13,TOTAL=3500;
+const S={theme:'gruvbox',viz:true,style:0,list:null,paused:false,shuffle:false,mute:false,vol:7,sel:11,play:11,fav:new Set([2,8]),el:724,msg:'',msgT:0,cols:88};
+
+/* ---- fake but musical spectrum ---- */
+const NB=64,BL='▁▂▃▄▅▆▇█';
+const A={t:2,b:new Float32Array(NB),pk:new Float32Array(NB),pt:new Float32Array(NB),en:0,l:0,r:0,lh:0,rh:0};
+const fr=x=>x-Math.floor(x),hash=n=>fr(Math.sin(n*127.1)*43758.5453);
+function target(i,t){const f=i/(NB-1),beat=fr(t*1.9),kick=Math.pow(Math.max(0,1-beat*2.6),2),hat=Math.max(0,1-fr(t*3.8+.5)*5);
+const tilt=.9*Math.exp(-2.4*f)+.12,wob=.5+.5*Math.sin(t*(1.1+f*2.6)+f*11),n=hash(i*7+Math.floor(t*14));
+return Math.min(1,tilt*(.3+.5*wob)+kick*(1-f)*(1-f)*.62+hat*f*f*.5+n*.14*(.4+f))}
+function step(dt){A.t+=dt;let sum=0;
+for(let i=0;i<NB;i++){const tg=S.paused?0:target(i,A.t),b=A.b[i];
+A.b[i]=tg>b?b+(tg-b)*Math.min(1,dt*18):Math.max(tg,b-dt*(S.paused?1.5:2.6));
+if(A.b[i]>=A.pk[i]){A.pk[i]=A.b[i];A.pt[i]=.35}else{A.pt[i]-=dt;if(A.pt[i]<0)A.pk[i]=Math.max(A.b[i],A.pk[i]-dt*.7)}
+sum+=A.b[i]}
+A.en=Math.min(1,sum/NB*1.9);
+const tl=S.paused?0:Math.min(1,A.en*1.15*(.9+.15*Math.sin(A.t*2.7))),tr=S.paused?0:Math.min(1,A.en*1.15*(.9+.15*Math.sin(A.t*3.1+1)));
+A.l=tl>A.l?A.l+(tl-A.l)*Math.min(1,dt*14):Math.max(tl,A.l-dt*1.6);
+A.r=tr>A.r?A.r+(tr-A.r)*Math.min(1,dt*14):Math.max(tr,A.r-dt*1.6);
+A.lh=A.l>=A.lh?A.l:Math.max(A.l,A.lh-dt*.35);A.rh=A.r>=A.rh?A.r:Math.max(A.r,A.rh-dt*.35);
+if(!S.paused)S.el+=dt;if(S.el>=TOTAL)go(nextIdx());
+if(S.msg&&A.t>S.msgT)S.msg=''}
+function prime(zero){A.t=2;for(let i=0;i<NB;i++){A.b[i]=A.pk[i]=0}A.l=A.r=A.lh=A.rh=0;if(!zero)for(let k=0;k<50;k++)step(.05)}
+function rs(src,n){const m=src.length,o=new Array(n);
+for(let i=0;i<n;i++){if(n<m){let a=Math.floor(i*m/n),b=Math.max(a+1,Math.floor((i+1)*m/n)),s=0;for(let j=a;j<b;j++)s+=src[j];o[i]=s/(b-a)}
+else{const p=n===1?0:i*(m-1)/(n-1),a=Math.floor(p),b=Math.min(m-1,a+1);o[i]=src[a]+(src[b]-src[a])*(p-a)}}return o}
+
+/* ---- visualizer renderers: cells are [glyph, class] ---- */
+const grid=(w,h)=>Array.from({length:h},()=>Array.from({length:w},()=>[' ','']));
+const vc=f=>'v'+Math.min(4,Math.floor(f*5));
+function layout(w){const gap=w>=6;return[gap?Math.ceil(w/2):w,gap?2:1]}
+function rBars(w,h){const g=grid(w,h),[n,st]=layout(w),lv=rs(A.b,n);
+for(let i=0;i<n;i++){const x=i*st,tot=Math.round(clamp(lv[i],0,1)*8*h);
+for(let r=0;r<h;r++){const c=Math.min(8,Math.max(0,tot-8*r));if(!c)break;g[h-1-r][x]=[BL[c-1],vc((r+.5)/h)]}}return g}
+function rArea(w,h){const g=grid(w,h);let lv=rs(A.b,w);lv=lv.map((v,i)=>((lv[i-1]??v)+v*2+(lv[i+1]??v))/4);
+for(let x=0;x<w;x++){const tot=Math.round(clamp(lv[x],0,1)*8*h);
+for(let r=0;r<h;r++){const c=Math.min(8,Math.max(0,tot-8*r));if(!c)break;g[h-1-r][x]=[BL[c-1],vc((r+.5)/h)]}}return g}
+function rMirror(w,h){const g=grid(w,h),[n,st]=layout(w),lv=rs(A.b,n),half=Math.floor(h/2),odd=h%2;
+for(let i=0;i<n;i++){const x=i*st,l=clamp(lv[i],0,1),tot=Math.round(l*8*Math.max(half,1));
+if(odd&&l>.02)g[half][x]=['█','v0'];
+for(let r=0;r<half;r++){const c=Math.min(8,Math.max(0,tot-8*r));if(!c)break;const k=vc((r+.5)/half);
+g[half-1-r][x]=[BL[c-1],k];
+g[half+odd+r][x]=c===8?['█',k]:[BL[8-c-1],k+' rv']}}return g}
+const BR=[[1,2,4,64],[8,16,32,128]];
+function rWave(w,h){const g=grid(w,h),dw=w*2,dh=h*4,m=new Array(w*h).fill(0),amp=Math.min(1,A.en*1.7),mid=(dh-1)/2;let py=null;
+for(let x=0;x<dw;x++){const u=x/dw*Math.PI*2,s=amp*(.6*Math.sin(u*1.6+A.t*5)+.3*Math.sin(u*3.7-A.t*8)+.12*Math.sin(u*7.3+A.t*13)),y=clamp(Math.round(mid-s*mid*.95),0,dh-1);
+const a=py===null?y:py,lo=Math.min(a,y),hi=Math.max(a,y);
+for(let yy=lo;yy<=hi;yy++)m[(yy>>2)*w+(x>>1)]|=BR[x&1][yy&3];py=y}
+for(let r=0;r<h;r++)for(let c=0;c<w;c++){const v=m[r*w+c];if(v)g[r][c]=[String.fromCharCode(0x2800+v),'vw']}return g}
+function rDots(w,h){const g=grid(w,h),[n,st]=layout(w),lv=rs(A.b,n),pk=rs(A.pk,n);
+for(let i=0;i<n;i++){const x=i*st,k=Math.round(clamp(lv[i],0,1)*h);
+for(let r=0;r<k;r++)g[h-1-r][x]=['·','vd'];
+if(pk[i]>.03){const pr=clamp(Math.ceil(pk[i]*h)-1,0,h-1);g[h-1-pr][x]=['▪','vp']}}return g}
+function rVu(w,h){const g=grid(w,h);if(h<1)return g;const rows=h>=3?[Math.floor((h-3)/2),Math.floor((h-3)/2)+2]:[0,Math.min(1,h-1)];
+[['L',A.l,A.lh],['R',A.r,A.rh]].forEach(([lab,lv,hd],k)=>{const y=rows[k],lb=w>=6,off=lb?2:0,n=w-off,f=Math.round(clamp(lv,0,1)*n),t=Math.round(clamp(hd,0,1)*n);
+if(lb)g[y][0]=[lab,'vd'];
+for(let i=0;i<n;i++){const z=(i+1)/n;g[y][off+i]=i<f?['▮',z<=.6?'vo':z<=.85?'vn':'vc']:(t>f&&i+1===t)?['▮','vh']:['▯','vd']}});return g}
+const RENDER=[rBars,rMirror,rWave,rDots,rArea,rVu];
+
+/* ---- rows as span runs ---- */
+function mk(w){const p=[];let n=0;const o={
+add(t,c,d){if(t.length){p.push([t,c||'',d]);n+=t.length}return o},
+addRow(r){r.parts().forEach(x=>{p.push(x);n+=x[0].length});return o},
+cells(row){let cur=null,buf='';for(const[ch,c]of row){if(c!==cur){if(buf)o.add(buf,cur);buf='';cur=c}buf+=ch}if(buf)o.add(buf,cur);return o},
+parts(){let left=w;const out=[];for(const[t,c,d]of p){if(left<=0)break;const s=t.length>left?t.slice(0,left):t;left-=s.length;out.push([s,c,d])}if(left>0)out.push([' '.repeat(left),'']);return out},
+html(){return o.parts().map(([t,c,d])=>(c||d!=null)?`<span${c?` class="${c}"`:''}${d!=null?` data-i="${d}"`:''}>${esc(t)}</span>`:esc(t)).join('')}};return o}
+const fit=(s,n)=>n<=0?'':s.length>n?s.slice(0,Math.max(0,n-1))+'…':s;
+const fmt=s=>{s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+
+/* ---- the player screen ---- */
+const LIST_HELP=[[['↑↓','move'],['Enter','play'],['/','search'],['n','next'],['p','pause'],['s','shuffle'],['f','fav'],['d','download'],['h','list'],['v','viz'],['q','quit']],
+[['↑↓','move'],['Enter','play'],['/','search'],['n','next'],['p','pause'],['h','list'],['q','quit']],
+[['↑↓',''],['Enter',''],['/',''],['n',''],['p',''],['h',''],['v',''],['q','']]];
+const CMP_HELP=[[['n','next'],['b','back'],['p','pause'],['s','shuffle'],['f','fav'],['m','mute'],['+/-','vol'],['d','download'],['h','list'],['v','viz'],['q','quit']],
+[['n','next'],['b','back'],['p','pause'],['s','shuffle'],['f','fav'],['m','mute'],['+/-','vol'],['q','quit']],
+[['n',''],['b',''],['p',''],['s',''],['f',''],['m',''],['+/-',''],['i',''],['d',''],['h',''],['v',''],['q','']]];
+function helpRow(v0,w){const vars=v0.map(v=>v.map(([k,l])=>[k,l?(STRINGS.help[l]||l):'']));const wd=it=>2+it.reduce((a,[k,l],i)=>a+(i?(l?2:1):0)+k.length+(l?1+l.length:0),0);
+const it=vars.find(v=>wd(v)<=w)||vars[vars.length-1],r=mk(w).add('  ');
+it.forEach(([k,l],i)=>{if(i)r.add(l?'  ':' ');r.add(k,'hk');if(l)r.add(' '+l,'ht')});return r}
+const showList=W=>S.list===null?W>=80:(S.list&&W>=64);
+function titleRow(w){const t=fit(tr('episode',{n:EP0+S.play}),w-7),r=mk(w).add('  ♪  ','ac').add(t,'bd');r.add(' '.repeat(Math.max(0,w-5-t.length-1))).add(S.fav.has(S.play)?'★':' ','fv');return r}
+function durRow(w){return mk(w).add('     '+tr('duration',{time:fmt(TOTAL)}),'mu')}
+function progRow(w){const e=fmt(S.el),t=fmt(TOTAL),bw=Math.max(0,w-(5+e.length+1+2+t.length+2)),f=Math.round(S.el/TOTAL*bw),r=mk(w).add(S.paused?'  ⏸  ':'  ▶  ','ac').add(e+' ');
+if(f>0)r.add('━'.repeat(f-1)+'╺','pf');r.add('─'.repeat(bw-f),'pe').add('  ').add(t,'mu');return r}
+function volRow(w){const seg=clamp(w-33,4,10),v=S.mute?0:S.vol,f=Math.round(v/10*seg),r=mk(w).add('  '+STRINGS.vol+' ','mu');
+r.add('▮'.repeat(f),'vf').add('▯'.repeat(seg-f),'ve').add(' '+(v*10+'%').padEnd(4)).add('  '+STRINGS.shuffle+' '+(S.shuffle?STRINGS.on:STRINGS.off).padEnd(3),'mu').add('  '+STRINGS.mpris+' ','mu').add('●','ok');return r}
+function statRow(w){return mk(w).add(S.msg?'  '+fit(S.msg,w-3):'','st')}
+function epRow(i,w){const sel=i===S.sel,pl=i===S.play,c=x=>sel?'sel'+(x==='bd'?' bd':''):x;
+const t=fit(tr('episode',{n:EP0+i}),w-4),r=mk(w);
+r.add(pl?'▶ ':'  ',c('mk'),i).add(t,c(pl?'bd':''),i).add(' '.repeat(Math.max(0,w-4-t.length)),c(''),i).add(S.fav.has(i)?' ★':'  ',c('fv'),i);return r}
+function frame(W){
+const inner=W-2,full=showList(W),L=full?clamp(Math.floor(inner*2/5),24,44):0,div=L+1,out=[];
+let top='';for(let x=6;x<W-1;x++)top+=(full&&x===div)?'\u252c':'\u2500';
+out.push(mk(W).add('\u250c','b').add(' mfp ','ti').add(top,'b').add('\u2510','b').html());
+const wall=()=>mk(W).add('\u2502','b');
+const vizRows=(w,h)=>S.viz&&w>0&&h>=2?RENDER[S.style](w,h):null;
+if(full){const lw=L-2,sw=inner-L-1,cw=sw-2,vg=vizRows(cw,7);
+for(let r=0;r<14;r++){
+const left=r===0?mk(lw).add(tr('episodes',{n:NEP}),'bd'):epRow(r-1,lw);
+let right;
+if(r===0)right=titleRow(cw);else if(r===1)right=durRow(cw);else if(r===3)right=progRow(cw);else if(r===4)right=volRow(cw);
+else if(r===13)right=statRow(cw);else if(r>=6&&r<=12&&vg)right=mk(cw).cells(vg[r-6]);else right=mk(cw);
+out.push(wall().add(' ').addRow(left).add(' ').add('\u2502','b').add(' ').addRow(right).add(' ').add('\u2502','b').html())}
+let sep='';for(let x=1;x<W-1;x++)sep+=x===div?'\u2534':'\u2500';
+out.push(mk(W).add('\u251c'+sep+'\u2524','b').html());
+out.push(wall().addRow(helpRow(LIST_HELP,inner)).add('\u2502','b').html())}
+else{const cw=inner,vg=vizRows(cw-2,9);
+[titleRow(cw),durRow(cw),progRow(cw),volRow(cw),statRow(cw)].forEach(r=>out.push(wall().addRow(r).add('\u2502','b').html()));
+for(let r=0;r<9;r++)out.push(wall().addRow(vg?mk(cw).add(' ').cells(vg[r]):mk(cw)).add('\u2502','b').html());
+out.push(mk(W).add('\u251c'+'\u2500'.repeat(inner)+'\u2524','b').html());
+out.push(wall().addRow(helpRow(CMP_HELP,inner)).add('\u2502','b').html())}
+out.push(mk(W).add('\u2514'+'\u2500'.repeat(inner)+'\u2518','b').html());
+return out.join('\n')}
+
+/* ---- wiring ---- */
+const screen=$('#screen'),demo=$('#demo'),meas=$('#meas');
+let cw=7.83;
+function measure(){if(!meas)return;const w=meas.getBoundingClientRect().width/20;if(w>2)cw=w}
+function calcCols(){measure();S.cols=clamp(Math.floor(screen.clientWidth/cw),30,100)}
+function draw(){if(!screen)return;screen.innerHTML=frame(S.cols)}
+const pvs=$$('.pv[data-viz]').map(el=>({el,st:STY.indexOf(el.dataset.viz),w:26,h:5}));
+function calcPv(){pvs.forEach(p=>{const c=parseFloat(getComputedStyle(p.el).paddingLeft)*2;p.w=clamp(Math.floor((p.el.clientWidth-c)/cw),12,44)})}
+function drawPv(p){p.el.innerHTML=RENDER[p.st](p.w,p.h).map(r=>mk(p.w).cells(r).html()).join('\n')}
+const vis=new Set();let raf=0,last=0;
+function renderAll(force){if(force||vis.has(frameEl))draw();pvs.forEach(p=>{if(force||vis.has(p.el))drawPv(p)})}
+function tick(ts){raf=requestAnimationFrame(tick);const d=ts-last;if(d<50)return;last=ts;step(Math.min(d,120)/1000);renderAll()}
+function sync(){const run=vis.size>0&&!document.hidden&&!RM.matches;
+if(run&&!raf){last=performance.now();raf=requestAnimationFrame(tick)}else if(!run&&raf){cancelAnimationFrame(raf);raf=0}}
+const frameEl=$('#demo-frame');
+
+function msg(t){S.msg=t;S.msgT=A.t+2.4}
+function setTheme(n){if(!THEMES[n])return;S.theme=n;const st=document.documentElement.style;
+KEYS.forEach(k=>st.setProperty(cv(k),THEMES[n].v[k]));
+$$('.chip').forEach(c=>c.setAttribute('aria-pressed',String(c.dataset.theme===n)));
+const tn=$('#theme-now');if(tn)tn.textContent=tr(THEMES[n].kind==='terminal colors'?'themeNoteTerm':'themeNote',{name:n})}
+function go(i){S.play=S.sel=((i%NEP)+NEP)%NEP;S.el=0}
+function nextIdx(){if(S.shuffle&&NEP>1){let j;do{j=Math.floor(Math.random()*NEP)}while(j===S.play);return j}return S.play+1}
+function ui(){const set=(k,p)=>{const b=$(`.tb[data-k="${k}"]`);if(b)b.setAttribute('aria-pressed',String(p))};
+set('V',S.viz);set('h',showList(S.cols));set('p',S.paused);set('s',S.shuffle);set('f',S.fav.has(S.play));set('m',S.mute);
+const l=$('#v-label');if(l)l.textContent=tr('styleLabel',{style:STY[S.style]})}
+function settle(){if(RM.matches){if(S.paused){for(let i=0;i<NB;i++)A.b[i]=A.pk[i]=0;A.l=A.r=A.lh=A.rh=0}else prime()}}
+function act(k){
+switch(k){
+case 'v':S.viz=true;S.style=(S.style+1)%STY.length;msg(tr('msgViz',{style:STY[S.style]}));break;
+case 'V':S.viz=!S.viz;msg(S.viz?tr('msgVizOn'):tr('msgVizOff'));break;
+case 'h':if(S.cols>=64)S.list=!showList(S.cols);else msg(tr('msgNarrow'));break;
+case 'p':S.paused=!S.paused;msg(S.paused?tr('msgPaused'):tr('msgPlaying'));settle();break;
+case 'n':go(nextIdx());break;
+case 'b':go(S.play-1);break;
+case 's':S.shuffle=!S.shuffle;msg(S.shuffle?tr('msgShuffleOn'):tr('msgShuffleOff'));break;
+case 'f':{const i=S.play;S.fav.has(i)?S.fav.delete(i):S.fav.add(i);msg(S.fav.has(i)?tr('msgFavAdd'):tr('msgFavDel'));break}
+case 'm':S.mute=!S.mute;msg(S.mute?tr('msgMute'):tr('msgUnmute'));break;
+case '+':case '=':S.mute=false;S.vol=Math.min(10,S.vol+1);break;
+case '-':S.vol=Math.max(0,S.vol-1);break;
+case 'j':S.sel=Math.min(NEP-1,S.sel+1);break;
+case 'k':S.sel=Math.max(0,S.sel-1);break;
+case 'g':S.sel=0;break;
+case 'G':S.sel=NEP-1;break;
+case 'Enter':go(S.sel);break;
+default:return false}
+ui();draw();return true}
+if(demo&&screen){
+screen.setAttribute('aria-hidden','true');
+demo.addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey||e.isComposing)return;if(act(e.key))e.preventDefault()});
+demo.addEventListener('click',e=>{const t=e.target.closest('[data-i]');if(t){S.sel=+t.dataset.i;go(S.sel);ui();draw()}});
+$$('.tb').forEach(b=>b.addEventListener('click',()=>act(b.dataset.k)));
+$$('.chip').forEach(c=>c.addEventListener('click',()=>setTheme(c.dataset.theme)));
+$$('.try').forEach(b=>b.addEventListener('click',()=>{setTheme(b.dataset.theme);frameEl.scrollIntoView({behavior:RM.matches?'auto':'smooth',block:'center'})}));
+/* deep links: #theme=nord&viz=wave&list=0&paused=1 */
+const q=new URLSearchParams(location.hash.slice(1));
+if(q.get('viz')){const i=STY.indexOf(q.get('viz'));if(i>=0)S.style=i;else if(q.get('viz')==='off')S.viz=false}
+if(q.get('list')==='0')S.list=false;if(q.get('list')==='1')S.list=true;if(q.get('paused')==='1')S.paused=true;
+setTheme(THEMES[q.get('theme')]?q.get('theme'):S.theme);
+prime(S.paused);measure();calcCols();calcPv();ui();
+new ResizeObserver(()=>{calcCols();calcPv();ui();renderAll(true)}).observe(screen);
+requestAnimationFrame(()=>{if(!RM.matches)document.documentElement.style.transition=KEYS.map(k=>cv(k)+' .55s ease').join(',')});
+renderAll(true);
+const io=new IntersectionObserver(es=>{es.forEach(e=>e.isIntersecting?vis.add(e.target):vis.delete(e.target));sync()},{rootMargin:'60px'});
+io.observe(frameEl);pvs.forEach(p=>io.observe(p.el));
+document.addEventListener('visibilitychange',sync);
+RM.addEventListener('change',()=>{document.documentElement.style.transition='';if(RM.matches)prime(S.paused);sync();renderAll(true)});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{measure();calcCols();calcPv();renderAll(true)})}
+
+/* ---- scroll reveals ---- */
+(function(){if(!('IntersectionObserver'in window))return;
+const els=$$('.sec-head,.sec-body>*,.bento>*,.steps>*,.stack>*').filter(e=>e.getBoundingClientRect().top>innerHeight*.98);
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{rootMargin:'0px 0px -6% 0px'});
+els.forEach((e,i)=>{e.classList.add('reveal');e.style.setProperty('--d',String(i%4));io.observe(e)})})();
+
+/* ---- one fetch of changelog.json: version badge and footer date ---- */
+const changelog=fetch('changelog.json').then(r=>r.ok?r.json():null).catch(()=>null);
+async function loadReleaseVersion(){
+try{const rel=await changelog;if(!Array.isArray(rel))return;
+const version=rel.find(r=>r&&r.version)?.version,badge=$('#hero-badge-release');
+if(version&&badge)badge.textContent=version}catch(e){}}
+async function loadLastUpdated(){
+try{const rel=await changelog;if(!Array.isArray(rel))return;
+const withCommits=rel.filter(r=>r&&Array.isArray(r.commits)&&r.commits.length>0),
+unreleased=withCommits.filter(r=>!r.version),latestTagged=withCommits.find(r=>r.version),
+visible=[...unreleased,...(latestTagged?[latestTagged]:[])],
+ts=visible[0]?.commits?.[0]?.author?.timestamp,el=$('#footer-updated');
+if(el&&Number.isFinite(ts))el.textContent=tr('updated',{date:fmtDate(ts)})}catch(e){}}
+
+/* ---- What's new: built with createElement/textContent only ---- */
+const REPO='https://github.com/4DRIAN0RTIZ/mfp';
+const GROUPS={Features:['feat','✦'],'Bug Fixes':['fix','✱'],Performance:['perf','»'],Refactor:['refactor','↻'],Documentation:['docs','¶'],Style:['style','✎'],Testing:['test','✓'],Build:['build','▣'],CI:['ci','∞'],Chore:['chore','·'],Revert:['revert','↶'],Other:['other','·']};
+const MAIN=['Features','Bug Fixes'],CAP=8;
+function mkEl(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+function mkLink(href,text,label,cls){const a=mkEl('a',cls,text);a.href=href;a.target='_blank';a.rel='noopener';if(label)a.setAttribute('aria-label',label);return a}
+function newest(r){let m=0;for(const c of r.commits){const t=c&&c.author&&c.author.timestamp;if(Number.isFinite(t)&&t>m)m=t}return m}
+function commitItem(c){const li=mkEl('li','cl-c');
+if(c.scope)li.appendChild(mkEl('span','cl-scope',String(c.scope)+': '));
+let m=String(c.message||'').split('\n')[0].trim().replace(/\.$/,'');m=m.charAt(0).toUpperCase()+m.slice(1);
+li.appendChild(mkEl('span','cl-m',m));
+const id=String(c.id||'');
+if(/^[0-9a-f]{7,40}$/i.test(id)){li.appendChild(document.createTextNode(' '));li.appendChild(mkLink(REPO+'/commit/'+id,id.slice(0,7),tr('clCommit',{hash:id.slice(0,7)}),'cl-h'))}
+return li}
+function groupBlock(name,commits,tag){const g=GROUPS[name]||GROUPS.Other,box=mkEl('div','cl-g g-'+g[0]),h=mkEl(tag||'h4','cl-gh'),chip=mkEl('span','cl-chip'),ic=mkEl('span','cl-ic',g[1]);
+ic.setAttribute('aria-hidden','true');chip.appendChild(ic);chip.appendChild(document.createTextNode(STRINGS.groups[name]||name));
+h.appendChild(chip);h.appendChild(mkEl('span','cl-n',String(commits.length)));box.appendChild(h);
+const ul=mkEl('ul','cl-list');commits.slice(0,CAP).forEach(c=>ul.appendChild(commitItem(c)));
+if(commits.length>CAP){const li=mkEl('li','cl-c cl-more');li.appendChild(mkLink(REPO+'/commits',tr('clMore',{n:commits.length-CAP})));ul.appendChild(li)}
+box.appendChild(ul);return box}
+function releaseBlock(r){const art=mkEl('article','cl-r'+(r.version?'':' cl-un')),head=mkEl('header','cl-rh');
+head.appendChild(mkEl('h3','cl-v',r.version||STRINGS.clUnreleased));if(!r.version)head.appendChild(mkEl('span','cl-tag',STRINGS.clComing));
+const ts=r.timestamp||newest(r);if(ts){const t=mkEl('time','cl-d',fmtDate(ts));t.dateTime=fmtDate(ts);head.appendChild(t)}
+if(r.version)head.appendChild(mkLink(REPO+'/releases/tag/'+encodeURIComponent(r.version),'GitHub ↗',tr('clRelease',{version:r.version}),'cl-gh'));
+art.appendChild(head);
+const by={};r.commits.forEach(c=>{const k=c&&GROUPS[c.group]?c.group:'Other';(by[k]=by[k]||[]).push(c||{})});
+MAIN.filter(k=>by[k]).forEach(k=>art.appendChild(groupBlock(k,by[k])));
+const rest=Object.keys(GROUPS).filter(k=>!MAIN.includes(k)&&by[k]);
+if(rest.length){const d=mkEl('details','cl-other'),n=rest.reduce((a,k)=>a+by[k].length,0);d.appendChild(mkEl('summary',null,STRINGS.clOther+' ('+n+')'));rest.forEach(k=>d.appendChild(groupBlock(k,by[k])));art.appendChild(d)}
+return art}
+function renderChangelog(rel){const box=$('#changelog-body');if(!box)return;box.textContent='';
+const msg=k=>{const p=mkEl('p','cl-empty',STRINGS[k]+' ');p.appendChild(mkLink(REPO+'/releases',STRINGS.clAll));box.appendChild(p)};
+if(!Array.isArray(rel)){msg('clFailed');return}
+const wc=rel.filter(r=>r&&Array.isArray(r.commits)&&r.commits.length>0);
+if(!wc.length){msg('clEmpty');return}
+const un=wc.filter(r=>!r.version),tagged=wc.filter(r=>r.version),older=tagged.slice(1,4);
+[...un,...tagged.slice(0,1)].forEach(r=>box.appendChild(releaseBlock(r)));
+if(older.length){const d=mkEl('details','cl-older');d.appendChild(mkEl('summary',null,STRINGS.clOlder));older.forEach(r=>d.appendChild(releaseBlock(r)));box.appendChild(d)}}
+async function loadChangelogSection(){let rel=null;try{rel=await changelog}catch(e){}try{renderChangelog(rel)}catch(e){renderChangelog(null)}}
+loadReleaseVersion();loadLastUpdated();loadChangelogSection();
+
+/* ---- copy buttons ---- */
+window.copy=function(btn,text){
+const done=()=>{const label=btn.dataset.label||btn.textContent;btn.dataset.label=label;btn.textContent=STRINGS.copied;btn.classList.add('copied');
+const s=$('#copy-status');if(s)s.textContent=STRINGS.copiedStatus;
+setTimeout(()=>{btn.textContent=label;btn.classList.remove('copied');if(s)s.textContent=''},1800)};
+const fallback=()=>{const t=document.createElement('textarea');t.value=text;t.setAttribute('readonly','');t.style.cssText='position:fixed;left:-9999px';document.body.appendChild(t);t.select();
+try{if(document.execCommand('copy'))done()}catch(e){}t.remove()};
+if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(done,fallback);else fallback()};
+})();
+
 </script>
 </body>
 </html>
