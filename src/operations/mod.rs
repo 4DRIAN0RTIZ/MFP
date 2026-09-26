@@ -6,3 +6,4 @@ pub mod favorites;
 pub mod feed;
 pub mod playback;
 pub mod playlist;
+pub mod spectrum;

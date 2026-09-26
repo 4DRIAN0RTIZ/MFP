@@ -1,3 +1,4 @@
+mod audio_tap;
 mod cli;
 mod config;
 mod logging;

@@ -6,6 +6,8 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use crate::audio_tap::{TapHandle, TapSource};
+
 const BUFFER_SIZE: usize = 512 * 1024; // Initial buffer: 512 KB
 const CHUNK_SIZE: usize = 32 * 1024; // Chunk size: 32 KB
 
@@ -95,6 +97,8 @@ pub struct Player {
     is_paused: Arc<Mutex<bool>>,
     start_time: Arc<Mutex<Option<Instant>>>,
     paused_duration: Arc<Mutex<Duration>>,
+    /// Shared ring with the samples being played (read by the visualizer).
+    tap: TapHandle,
 }
 
 impl Player {
@@ -112,7 +116,15 @@ impl Player {
             is_paused: Arc::new(Mutex::new(false)),
             start_time: Arc::new(Mutex::new(None)),
             paused_duration: Arc::new(Mutex::new(Duration::from_secs(0))),
+            tap: TapHandle::new(),
         })
+    }
+
+    /// Handle to the audio tap (recent mono samples and levels). Cloning it
+    /// shares the same buffer; it is cleared on `stop` and on each new track.
+    #[allow(dead_code)] // used by phase C (visualizer)
+    pub fn tap(&self) -> TapHandle {
+        self.tap.clone()
     }
 
     /// Starts streaming `url` and blocks ~1.5s to let audio begin.
@@ -166,8 +178,9 @@ impl Player {
         });
 
         let sink_clone = Arc::clone(&sink);
+        let tap = self.tap.clone();
         let playback_handle = thread::spawn(move || {
-            let _ = Self::play_stream(rx, &sink_clone, download_complete, on_stage);
+            let _ = Self::play_stream(rx, &sink_clone, download_complete, on_stage, tap);
         });
 
         *self.download_thread.lock().unwrap() = Some(download_handle);
@@ -212,6 +225,7 @@ impl Player {
         sink: &Sink,
         download_complete: Arc<Mutex<bool>>,
         on_stage: Arc<dyn Fn(PlayerStage) + Send + Sync>,
+        tap: TapHandle,
     ) -> Result<()> {
         let mut initial_buffer = Vec::new();
 
@@ -247,7 +261,8 @@ impl Player {
 
         let source = Decoder::new(buf_reader).context("No se pudo decodificar el audio")?;
 
-        sink.append(source);
+        // The tap forwards every sample unchanged; see `audio_tap`.
+        sink.append(TapSource::new(source, tap));
         sink.sleep_until_end();
 
         Ok(())
@@ -260,6 +275,7 @@ impl Player {
 
         let _ = self.playback_thread.lock().unwrap().take();
         let _ = self.download_thread.lock().unwrap().take();
+        self.tap.clear();
 
         *self.is_paused.lock().unwrap() = false;
     }
