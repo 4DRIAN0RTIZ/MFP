@@ -58,7 +58,7 @@
       font-weight: 700;
       letter-spacing: .05em;
     }
-    .nav-links { display: flex; gap: 20px; }
+    .nav-links { display: flex; gap: 16px; }
     .nav-links a {
       color: var(--muted);
       font-size: 13px;
@@ -366,6 +366,88 @@
     }
     .polybar-preview .bar-label { color: var(--accent); font-size: 13px; }
 
+    /* ── Documentation sections ── */
+    :root { --muted-hi: #9a9a9a; }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip: rect(0 0 0 0); white-space: nowrap;
+    }
+    .doc-section { border-top: 1px solid var(--border); }
+    .doc-section h3 {
+      font-size: 14px; color: var(--text-hi); font-weight: 600;
+      margin: 32px 0 12px;
+    }
+    .doc-section h3:first-of-type { margin-top: 0; }
+    .doc-section p, .doc-section li { font-size: 14px; color: var(--muted-hi); max-width: 680px; }
+    .doc-section p { margin-bottom: 14px; }
+    .doc-section ul.plain { padding-left: 20px; margin-bottom: 14px; }
+    .doc-section li { margin-bottom: 6px; }
+    .doc-section code, .inline-code {
+      font-family: var(--mono); font-size: 12px; color: var(--accent2);
+    }
+    .doc-section a:focus-visible, .copy-btn:focus-visible, .btn:focus-visible {
+      outline: 2px solid var(--accent); outline-offset: 2px;
+    }
+    .note {
+      border-left: 3px solid #2a4a2a; background: #0d1f0d;
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 10px 16px; margin: 0 0 16px; max-width: 680px;
+      font-size: 13px; color: var(--text);
+    }
+    .code-block.tall { align-items: flex-start; margin-bottom: 16px; }
+    .code-block.tall .copy-btn { margin-top: -2px; }
+    .doc-table { width: 100%; border-collapse: collapse; margin: 8px 0 20px; }
+    .doc-table th {
+      text-align: left; font-size: 11px; font-family: var(--mono);
+      color: var(--muted-hi); letter-spacing: .08em; text-transform: uppercase;
+      padding: 0 12px 10px; border-bottom: 1px solid var(--border);
+    }
+    .doc-table td {
+      padding: 9px 12px; font-size: 13px; color: var(--text);
+      border-bottom: 1px solid #1a1a1a; vertical-align: top;
+    }
+    .doc-table tr:last-child td { border-bottom: none; }
+    .doc-table td:first-child { white-space: nowrap; width: 12.5em; }
+    .doc-table.wide td:first-child { width: 16em; }
+    .table-wrap { overflow-x: auto; }
+    .style-grid {
+      display: grid; gap: 16px; margin-bottom: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+    .style-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .style-card h3 { margin: 0; padding: 12px 18px; border-bottom: 1px solid var(--border); }
+    .style-card p { font-size: 13px; padding: 12px 18px 0; margin: 0; }
+    .style-card pre {
+      padding: 12px 18px 16px; font-family: var(--mono); font-size: 13px;
+      line-height: 1.15; color: var(--accent); overflow-x: auto;
+    }
+    .theme-grid {
+      display: grid; gap: 16px; margin-bottom: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+    .theme-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px;
+    }
+    .theme-card h3 { margin: 0 0 8px; }
+    .theme-card p { font-size: 13px; margin-bottom: 12px; }
+    .swatches { list-style: none; display: flex; flex-wrap: wrap; gap: 10px; padding: 0; }
+    .swatches li { display: flex; flex-direction: column; align-items: center; margin: 0; width: 64px; }
+    .sw {
+      display: block; width: 40px; height: 40px; border-radius: 6px;
+      border: 1px solid #444;
+    }
+    .sw-name { font-size: 11px; color: var(--text); margin-top: 4px; text-align: center; line-height: 1.2; }
+    .sw-hex { font-family: var(--mono); font-size: 10px; color: var(--muted-hi); }
+    .keys-note { font-size: 13px; color: var(--muted-hi); margin-bottom: 16px; }
+
+    #player .control-row span:not(.kbd) { color: var(--muted-hi); font-size: 13px; }
+    #player .control-row .kbd { color: var(--accent2); }
+
+
     /* ── Footer ── */
     footer {
       border-top: 1px solid var(--border);
@@ -394,11 +476,14 @@
   <div class="inner">
     <span class="nav-brand">mfp</span>
     <div class="nav-links">
-      <a href="#features">Features</a>
       <a href="#install">Install</a>
       <a href="#usage">Usage</a>
-      <a href="#controls">Controls</a>
-      <a href="#polybar">Polybar</a>
+      <a href="#player">Player</a>
+      <a href="#visualizer">Visualizer</a>
+      <a href="#themes">Themes</a>
+      <a href="#config">Files</a>
+      <a href="#plain">Text mode</a>
+      <a href="#polybar">Media keys</a>
       <a href="https://github.com/4DRIAN0RTIZ/mfp">GitHub</a>
     </div>
   </div>
@@ -407,7 +492,7 @@
 <!-- Hero -->
 <div class="container">
   <div class="hero">
-    <div class="hero-badge">Rust · GPL-3.0 · Linux &amp; macOS</div>
+    <div class="hero-badge"><span id="hero-badge-release"></span> Rust · GPL-3.0 · Linux &amp; macOS</div>
     <h1><span>mfp</span> — Music For<br>Programming Player</h1>
     <p>Lightweight terminal player for <a href="https://musicforprogramming.net/" target="_blank" rel="noopener">musicforprogramming.net</a>. Streams directly, no external dependencies, MPRIS support.</p>
     <div class="hero-actions">
@@ -445,7 +530,17 @@
       <div class="feature-card">
         <span class="feature-icon">🎛</span>
         <h3>Full Playback Controls</h3>
-        <p>Play/pause, volume, mute, next, previous, shuffle — all from the keyboard while it runs.</p>
+        <p>A full-screen player with an episode list and search; play/pause, volume, mute, next, previous, shuffle — all from the keyboard while it runs.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🎚</span>
+        <h3>Live Visualizer</h3>
+        <p>Six animated styles that move with the music. Switch with <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">v</code>, turn off with <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">V</code>. <a href="#visualizer">See the styles</a>.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🎨</span>
+        <h3>Color Themes</h3>
+        <p>Six built-in themes, or make your own with a small text file. <a href="#themes">Choose your colors</a>.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">📡</span>
@@ -455,7 +550,7 @@
       <div class="feature-card">
         <span class="feature-icon">💾</span>
         <h3>Offline Downloads</h3>
-        <p>Download episodes to <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">~/.config/mfp/downloads/</code> and listen without a connection.</p>
+        <p>Save episodes to <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">~/.config/mfp/downloads/</code> with <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">d</code> or <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">mfp download</code>.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">⭐</span>
@@ -484,7 +579,7 @@
         <div class="step-num">1</div>
         <div class="step-body">
           <h3>Clone &amp; build</h3>
-          <p>Requires Rust stable. The release profile strips debug info and optimizes for size (~3.6 MB).</p>
+          <p>Requires Rust stable. The release profile strips debug info and optimizes for size (the binary is about 5 MB).</p>
           <div class="code-block">
             <code>git clone https://github.com/4DRIAN0RTIZ/mfp &amp;&amp; cd mfp
 cargo build --release</code>
@@ -509,9 +604,10 @@ cargo build --release</code>
         <div class="step-num">3</div>
         <div class="step-body">
           <h3>Play</h3>
+          <p>Running <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">mfp</code> opens the full-screen player. It is the same as <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">mfp play</code>. Press <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">q</code> to quit. See <a href="#player">Using the player</a> for all the keys.</p>
           <div class="code-block">
-            <code>mfp play</code>
-            <button class="copy-btn" onclick="copy(this, 'mfp play')">copy</button>
+            <code>mfp</code>
+            <button class="copy-btn" onclick="copy(this, 'mfp')">copy</button>
           </div>
         </div>
       </div>
@@ -531,11 +627,14 @@ cargo build --release</code>
 
       <div class="usage-card">
         <div class="usage-card-header">▶ Play</div>
-        <pre><span class="cmd">mfp play</span>                  <span class="comment"># first episode</span>
+        <pre><span class="cmd">mfp</span>                       <span class="comment"># start the player</span>
+<span class="cmd">mfp play</span>                  <span class="comment"># same, first episode</span>
 <span class="cmd">mfp play</span> <span class="flag">-e 75</span>           <span class="comment"># specific episode</span>
 <span class="cmd">mfp play</span> <span class="flag">-s</span>              <span class="comment"># shuffle</span>
 <span class="cmd">mfp play</span> <span class="flag">-f</span>              <span class="comment"># favorites only</span>
-<span class="cmd">mfp play</span> <span class="flag">-f -s</span>           <span class="comment"># favorites + shuffle</span></pre>
+<span class="cmd">mfp play</span> <span class="flag">-f -s</span>           <span class="comment"># favorites + shuffle</span>
+<span class="cmd">mfp play</span> <span class="flag">--compact</span>       <span class="comment"># start with the list hidden</span>
+<span class="cmd">mfp play</span> <span class="flag">--plain</span>         <span class="comment"># text mode, type cmd + Enter</span></pre>
       </div>
 
       <div class="usage-card">
@@ -564,34 +663,400 @@ cargo build --release</code>
 
 <hr class="divider" />
 
-<!-- Controls -->
-<section id="controls" class="controls-section">
+<!-- Player -->
+<section id="player" class="doc-section">
   <div class="container">
-    <div class="section-label">Keyboard shortcuts</div>
-    <h2>During playback</h2>
-    <div class="controls-grid">
-      <div class="control-row"><span class="kbd">n</span><span>Next episode</span></div>
-      <div class="control-row"><span class="kbd">b</span><span>Previous episode</span></div>
-      <div class="control-row"><span class="kbd">p</span><span>Pause / resume</span></div>
-      <div class="control-row"><span class="kbd">+</span><span>Volume up</span></div>
-      <div class="control-row"><span class="kbd">-</span><span>Volume down</span></div>
-      <div class="control-row"><span class="kbd">m</span><span>Mute / unmute</span></div>
-      <div class="control-row"><span class="kbd">s</span><span>Toggle shuffle</span></div>
-      <div class="control-row"><span class="kbd">f</span><span>Toggle favorite</span></div>
-      <div class="control-row"><span class="kbd">d</span><span>Download episode</span></div>
-      <div class="control-row"><span class="kbd">i</span><span>Episode info</span></div>
-      <div class="control-row"><span class="kbd">q</span><span>Quit</span></div>
+    <div class="section-label">Using the player</div>
+    <h2 id="controls">What you see and what to press</h2>
+
+    <h3>The screen</h3>
+    <p>When you run <code>mfp</code> it fills your terminal window. On a normal-sized window you get two panels side by side:</p>
+    <ul class="plain">
+      <li><strong>Episodes (left).</strong> The full list of episodes. A <code>▶</code> marks the one that is playing and a <code>★</code> marks your favorites.</li>
+      <li><strong>Player (right).</strong> The episode title, a progress bar with the time played and the total time, the volume, whether shuffle is on, and a dot that is filled when your desktop media keys are connected. Below that you see the <a href="#visualizer">visualizer</a> and a line for short messages, such as "downloading" or an error.</li>
+      <li><strong>Help line (bottom).</strong> A reminder of the most useful keys.</li>
+    </ul>
+
+    <h3>Two views</h3>
+    <p>Press <code>h</code> to hide the episode list and give the whole window to the player and visualizer. Press <code>h</code> again to bring the list back. You can also start with the list hidden using <code>mfp play --compact</code>.</p>
+    <p>You do not have to choose: until you press <code>h</code>, mfp picks the view from the size of your window. Below about 80 columns by 16 rows it uses the compact view by itself and switches back when you make the window bigger. Once you press <code>h</code>, your choice sticks for the rest of the session. Showing the list needs at least 64 by 12; on a smaller window <code>h</code> does nothing. If the window is really tiny (under 40 by 9) mfp asks you to make it bigger. When the list is hidden, the keys that move around the list do nothing.</p>
+
+    <h3>Keys</h3>
+    <p class="keys-note">Just press the key, no Enter needed. Keys are case-sensitive: <code>v</code> and <code>V</code> do different things.</p>
+    <div class="controls-grid" role="list">
+      <div class="control-row" role="listitem"><span class="kbd">n</span><span>Next episode</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">b</span><span>Previous episode</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">p</span><span>Pause / resume</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">s</span><span>Shuffle on / off</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">f</span><span>Add / remove favorite</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">m</span><span>Mute / unmute</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">+</span><span>Volume up</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">-</span><span>Volume down</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">i</span><span>Show episode info</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">d</span><span>Download this episode</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">h</span><span>Hide / show the episode list</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">v</span><span>Next visualizer style</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">V</span><span>Visualizer on / off</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">↑ ↓</span><span>Move in the list</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">j k</span><span>Move down / up (same as arrows)</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">PgUp PgDn</span><span>Move a page at a time</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">Home g</span><span>Jump to the first episode</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">End G</span><span>Jump to the last episode</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">Enter</span><span>Play the highlighted episode</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">/</span><span>Search episodes</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">q</span><span>Quit</span></div>
+      <div class="control-row" role="listitem"><span class="kbd">Ctrl+C</span><span>Quit (works anywhere)</span></div>
+    </div>
+
+    <h3>Searching</h3>
+    <p>Press <code>/</code> and start typing: the list narrows down as you type. While you are typing, letters go into the search box, so they will not trigger the keys above. Press <code>Enter</code> to keep the filtered list, or <code>Esc</code> to clear the search. The arrows, <code>PgUp</code>/<code>PgDn</code>, <code>Home</code> and <code>End</code> still move the selection while you search, and <code>Ctrl+C</code> always quits.</p>
+    <p>The list keys (moving, <code>Enter</code>, <code>/</code>) only work while the episode list is shown.</p>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- Visualizer -->
+<section id="visualizer" class="doc-section">
+  <div class="container">
+    <div class="section-label">Visualizer</div>
+    <h2>Watch the music move</h2>
+    <p>While an episode plays, mfp draws the sound as a live animation under the player. It reacts to what you are hearing: bass on the left, treble on the right. When you pause, it settles down to nothing. It only listens; it never changes the audio.</p>
+    <p>Press <code>v</code> to switch to the next style, and <code>V</code> to turn the animation off or on. If it is off, <code>v</code> turns it on again with the next style. In the compact view the visualizer is shown when the window is at least 13 rows tall.</p>
+
+    <div class="style-grid">
+      <div class="style-card">
+        <h3><code>bars</code></h3>
+        <p>Classic vertical bars. This is the default.</p>
+<pre role="img" aria-label="Sketch of vertical bars of different heights">      █
+  ▃   █ ▅
+▂ █ ▅ █ █ ▇   ▂
+█ █ █ █ █ █ ▄ █
+█ █ █ █ █ █ █ █</pre>
+      </div>
+      <div class="style-card">
+        <h3><code>mirror</code></h3>
+        <p>Bars that grow up and down from a middle line.</p>
+<pre role="img" aria-label="Sketch of bars mirrored above and below a center line">    ▂   █
+▃ █ █ █ █ ▅
+█ █ █ █ █ █ █
+█ █ █ █ █ █ █
+▀ █ █ █ █ ▀
+    ▀   █</pre>
+      </div>
+      <div class="style-card">
+        <h3><code>wave</code></h3>
+        <p>A wavy line, like an oscilloscope, drawn with tiny dots.</p>
+<pre role="img" aria-label="Sketch of a wavy line">      ⣀⡠⡀    ⢀
+⠑⠒⠉⠉⢆  ⢀⠔⠢⡀  ⣀⢄⡠⠊
+     ⠉⠉⠁  ⠈⠉⠉</pre>
+      </div>
+      <div class="style-card">
+        <h3><code>dots</code></h3>
+        <p>Columns of dots with a small marker that lingers at the highest point.</p>
+<pre role="img" aria-label="Sketch of columns of dots with markers on top">  ▪   ▪
+▪ · ▪ · ▪
+· · · · · ▪
+· · · · · · ▪
+· · · · · · ·</pre>
+      </div>
+      <div class="style-card">
+        <h3><code>area</code></h3>
+        <p>A smooth filled shape that follows the sound.</p>
+<pre role="img" aria-label="Sketch of a filled hill shape">   ▃▄▆▇▅
+ ▃▆█████▄▂
+▅█████████▇▃
+████████████
+████████████</pre>
+      </div>
+      <div class="style-card">
+        <h3><code>vu</code></h3>
+        <p>Two level meters, one for the left speaker and one for the right.</p>
+<pre role="img" aria-label="Sketch of two horizontal level meters, L and R">L ▮▮▮▮▮▮▮▮▮▮▮▮▯▯▯▯▯▯
+
+R ▮▮▮▮▮▮▮▮▮▮▮▮▮▯▯▯▯▯</pre>
+      </div>
+    </div>
+    <p>These sketches are only an idea of the shape. The real thing is colored and moves; the colors come from your <a href="#themes">theme</a>.</p>
+
+    <h3>Choose the starting style</h3>
+    <p>The style you pick with <code>v</code> and <code>V</code> lasts until you quit. To choose what mfp starts with, add a <code>[visualizer]</code> section to your <a href="#config">config file</a>:</p>
+    <div class="code-block tall">
+      <code>[visualizer]
+style = "wave"     # bars, mirror, wave, dots, area or vu
+enabled = true     # false starts with the visualizer off</code>
+      <button class="copy-btn" aria-label="Copy the visualizer settings" onclick="copy(this, this.previousElementSibling.textContent)">copy</button>
+    </div>
+    <p>If the style name is not recognized, mfp starts with <code>bars</code> and writes a note to its <a href="#config">log file</a>.</p>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- Themes -->
+<section id="themes" class="doc-section">
+  <div class="container">
+    <div class="section-label">Themes and colors</div>
+    <h2>Make it look the way you like</h2>
+    <p>mfp comes with six color themes. You choose one in the <a href="#config">config file</a>; there is deliberately no key to change the theme while listening, so a stray key press never repaints your screen.</p>
+
+    <h3>The built-in themes</h3>
+    <div class="theme-grid">
+      <div class="theme-card">
+        <h3><code>default</code></h3>
+        <p>The original look. Uses your terminal's own colors with a blue highlight, so it fits both dark and light terminals. This is what you get if you choose nothing.</p>
+      </div>
+      <div class="theme-card">
+        <h3><code>solarized</code></h3>
+        <p>Calm blue-green tones on a dark teal background.</p>
+        <ul class="swatches" aria-label="Main colors of the solarized theme"><li><span class="sw" role="img" aria-label="Background: #002b36" style="background:#002b36"></span><span class="sw-name">Background</span><span class="sw-hex">#002b36</span></li><li><span class="sw" role="img" aria-label="Text: #839496" style="background:#839496"></span><span class="sw-name">Text</span><span class="sw-hex">#839496</span></li><li><span class="sw" role="img" aria-label="Accent: #268bd2" style="background:#268bd2"></span><span class="sw-name">Accent</span><span class="sw-hex">#268bd2</span></li><li><span class="sw" role="img" aria-label="Low levels: #2aa198" style="background:#2aa198"></span><span class="sw-name">Low levels</span><span class="sw-hex">#2aa198</span></li><li><span class="sw" role="img" aria-label="Mid levels: #b58900" style="background:#b58900"></span><span class="sw-name">Mid levels</span><span class="sw-hex">#b58900</span></li><li><span class="sw" role="img" aria-label="High levels: #cb4b16" style="background:#cb4b16"></span><span class="sw-name">High levels</span><span class="sw-hex">#cb4b16</span></li></ul>
+      </div>
+      <div class="theme-card">
+        <h3><code>high-contrast</code></h3>
+        <p>Plain black and white with bright colors, easy to read on any screen. Uses your terminal's own basic colors (its black, white, bright cyan and so on), so the exact shades depend on your terminal.</p>
+      </div>
+      <div class="theme-card">
+        <h3><code>gruvbox</code></h3>
+        <p>Warm, earthy colors with a yellow highlight.</p>
+        <ul class="swatches" aria-label="Main colors of the gruvbox theme"><li><span class="sw" role="img" aria-label="Background: #282828" style="background:#282828"></span><span class="sw-name">Background</span><span class="sw-hex">#282828</span></li><li><span class="sw" role="img" aria-label="Text: #ebdbb2" style="background:#ebdbb2"></span><span class="sw-name">Text</span><span class="sw-hex">#ebdbb2</span></li><li><span class="sw" role="img" aria-label="Accent: #fabd2f" style="background:#fabd2f"></span><span class="sw-name">Accent</span><span class="sw-hex">#fabd2f</span></li><li><span class="sw" role="img" aria-label="Low levels: #83a598" style="background:#83a598"></span><span class="sw-name">Low levels</span><span class="sw-hex">#83a598</span></li><li><span class="sw" role="img" aria-label="Mid levels: #fabd2f" style="background:#fabd2f"></span><span class="sw-name">Mid levels</span><span class="sw-hex">#fabd2f</span></li><li><span class="sw" role="img" aria-label="High levels: #fb4934" style="background:#fb4934"></span><span class="sw-name">High levels</span><span class="sw-hex">#fb4934</span></li></ul>
+      </div>
+      <div class="theme-card">
+        <h3><code>nord</code></h3>
+        <p>Cool, muted arctic blues.</p>
+        <ul class="swatches" aria-label="Main colors of the nord theme"><li><span class="sw" role="img" aria-label="Background: #2e3440" style="background:#2e3440"></span><span class="sw-name">Background</span><span class="sw-hex">#2e3440</span></li><li><span class="sw" role="img" aria-label="Text: #d8dee9" style="background:#d8dee9"></span><span class="sw-name">Text</span><span class="sw-hex">#d8dee9</span></li><li><span class="sw" role="img" aria-label="Accent: #88c0d0" style="background:#88c0d0"></span><span class="sw-name">Accent</span><span class="sw-hex">#88c0d0</span></li><li><span class="sw" role="img" aria-label="Low levels: #5e81ac" style="background:#5e81ac"></span><span class="sw-name">Low levels</span><span class="sw-hex">#5e81ac</span></li><li><span class="sw" role="img" aria-label="Mid levels: #88c0d0" style="background:#88c0d0"></span><span class="sw-name">Mid levels</span><span class="sw-hex">#88c0d0</span></li><li><span class="sw" role="img" aria-label="High levels: #ebcb8b" style="background:#ebcb8b"></span><span class="sw-name">High levels</span><span class="sw-hex">#ebcb8b</span></li></ul>
+      </div>
+      <div class="theme-card">
+        <h3><code>dracula</code></h3>
+        <p>Dark purple background with pink and cyan accents.</p>
+        <ul class="swatches" aria-label="Main colors of the dracula theme"><li><span class="sw" role="img" aria-label="Background: #282a36" style="background:#282a36"></span><span class="sw-name">Background</span><span class="sw-hex">#282a36</span></li><li><span class="sw" role="img" aria-label="Text: #f8f8f2" style="background:#f8f8f2"></span><span class="sw-name">Text</span><span class="sw-hex">#f8f8f2</span></li><li><span class="sw" role="img" aria-label="Accent: #bd93f9" style="background:#bd93f9"></span><span class="sw-name">Accent</span><span class="sw-hex">#bd93f9</span></li><li><span class="sw" role="img" aria-label="Low levels: #8be9fd" style="background:#8be9fd"></span><span class="sw-name">Low levels</span><span class="sw-hex">#8be9fd</span></li><li><span class="sw" role="img" aria-label="Mid levels: #bd93f9" style="background:#bd93f9"></span><span class="sw-name">Mid levels</span><span class="sw-hex">#bd93f9</span></li><li><span class="sw" role="img" aria-label="High levels: #ff79c6" style="background:#ff79c6"></span><span class="sw-name">High levels</span><span class="sw-hex">#ff79c6</span></li></ul>
+      </div>
+    </div>
+
+    <h3>Choose a theme</h3>
+    <p>Create the file <code>~/.config/mfp/config.toml</code> (create the folder if it does not exist yet) with the name of the theme:</p>
+    <div class="code-block tall">
+      <code># ~/.config/mfp/config.toml
+[theme]
+active = "nord"
+
+[visualizer]
+style = "bars"
+enabled = true</code>
+      <button class="copy-btn" aria-label="Copy the example config file" onclick="copy(this, this.previousElementSibling.textContent)">copy</button>
+    </div>
+    <p>Every line is optional. Leave out anything you do not want to change. Restart mfp to see the change.</p>
+
+    <h3>Make your own theme</h3>
+    <p>A theme is a small text file in <code>~/.config/mfp/themes/</code>. Name it after your theme: a file called <code>midnight.toml</code> is chosen with <code>active = "midnight"</code>. Your file starts from one of the built-in themes (using <code>base</code>) and changes only the colors you list. If you leave out <code>base</code>, it starts from <code>default</code>. The base has to be one of the six built-in themes, not another theme of your own.</p>
+    <div class="code-block tall">
+      <code># ~/.config/mfp/themes/midnight.toml
+base = "nord"
+accent = "#c5a85b"
+viz_high = "light-red"
+favorite = "yellow"</code>
+      <button class="copy-btn" aria-label="Copy the example theme file" onclick="copy(this, this.previousElementSibling.textContent)">copy</button>
+    </div>
+    <p>Then select it in <code>config.toml</code>:</p>
+    <div class="code-block tall">
+      <code>[theme]
+active = "midnight"</code>
+      <button class="copy-btn" aria-label="Copy the theme selection" onclick="copy(this, this.previousElementSibling.textContent)">copy</button>
+    </div>
+
+    <h3>How to write a color</h3>
+    <ul class="plain">
+      <li>A <strong>name</strong>: <code>"cyan"</code>, <code>"red"</code>, <code>"light-blue"</code>, <code>"dark-gray"</code>, <code>"white"</code>. The names are black, red, green, yellow, blue, magenta, cyan, gray, dark-gray and white, plus a <code>light-</code> version of the bright ones. These use your terminal's own palette, so the exact shade depends on your terminal.</li>
+      <li>A <strong>hex code</strong>: <code>"#c5a85b"</code>. Exactly six digits after the <code>#</code>. This needs a terminal that shows millions of colors; most modern ones do.</li>
+      <li>A <strong>number from 0 to 255</strong>: <code>"166"</code>, from the standard 256-color palette.</li>
+      <li><code>"reset"</code>: use your terminal's own color.</li>
+    </ul>
+    <p>Always put the color in quotes.</p>
+
+    <h3>Every color you can change</h3>
+    <p>Each line in your theme file is one of these names, set to a color.</p>
+
+    <div class="table-wrap">
+    <table class="doc-table">
+      <caption class="sr-only">Theme options for the screen and text</caption>
+      <thead><tr><th scope="col">Option</th><th scope="col">What it changes</th></tr></thead>
+      <tbody>
+        <tr><td><code>background</code></td><td>The color behind everything. With <code>"reset"</code> mfp paints nothing and your terminal's own background shows.</td></tr>
+        <tr><td><code>foreground</code></td><td>The main text color. With <code>"reset"</code> your terminal's own text color is kept.</td></tr>
+        <tr><td><code>accent</code></td><td>Titles, icons and other highlighted parts.</td></tr>
+        <tr><td><code>muted</code></td><td>Less important text: durations, labels, hints.</td></tr>
+        <tr><td><code>border</code></td><td>The lines around and between the panels.</td></tr>
+        <tr><td><code>success</code></td><td>Good news, such as the media-keys dot when it is connected.</td></tr>
+        <tr><td><code>danger</code></td><td>Error messages.</td></tr>
+        <tr><td><code>status_text</code></td><td>Short informational messages.</td></tr>
+        <tr><td><code>help_key</code></td><td>The key names in the help line.</td></tr>
+        <tr><td><code>help_text</code></td><td>The descriptions in the help line.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="table-wrap">
+    <table class="doc-table">
+      <caption class="sr-only">Theme options for the episode list and the bars</caption>
+      <thead><tr><th scope="col">Option</th><th scope="col">What it changes</th></tr></thead>
+      <tbody>
+        <tr><td><code>selection_bg</code></td><td>The background of the highlighted row in the episode list.</td></tr>
+        <tr><td><code>selection_fg</code></td><td>The text color of the highlighted row. If both selection options are <code>"reset"</code>, the row is simply shown with swapped colors.</td></tr>
+        <tr><td><code>playing_marker</code></td><td>The <code>▶</code> next to the episode that is playing.</td></tr>
+        <tr><td><code>favorite</code></td><td>The <code>★</code> favorite star.</td></tr>
+        <tr><td><code>progress_filled</code></td><td>The part of the progress bar already played.</td></tr>
+        <tr><td><code>progress_empty</code></td><td>The part of the progress bar still to come.</td></tr>
+        <tr><td><code>volume_filled</code></td><td>The filled part of the volume bar.</td></tr>
+        <tr><td><code>volume_empty</code></td><td>The empty part of the volume bar.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="table-wrap">
+    <table class="doc-table">
+      <caption class="sr-only">Theme options for the visualizer</caption>
+      <thead><tr><th scope="col">Option</th><th scope="col">What it changes</th></tr></thead>
+      <tbody>
+        <tr><td><code>viz_low</code></td><td>The lower part of the bars, the low levels.</td></tr>
+        <tr><td><code>viz_mid</code></td><td>The middle part of the bars.</td></tr>
+        <tr><td><code>viz_high</code></td><td>The top part of the bars, the high levels. When these three are hex colors, the bars blend smoothly from one to the next; otherwise they change in steps.</td></tr>
+        <tr><td><code>viz_peak</code></td><td>The small markers that linger at the highest point in the <code>dots</code> style.</td></tr>
+        <tr><td><code>viz_dim</code></td><td>The dots themselves and the empty parts of the level meters.</td></tr>
+        <tr><td><code>viz_wave</code></td><td>The line of the <code>wave</code> style.</td></tr>
+        <tr><td><code>viz_vu_ok</code></td><td>Level meters, normal zone (up to 60% of the scale).</td></tr>
+        <tr><td><code>viz_vu_warn</code></td><td>Level meters, loud zone (up to 85%).</td></tr>
+        <tr><td><code>viz_vu_clip</code></td><td>Level meters, very loud zone (above 85%).</td></tr>
+        <tr><td><code>viz_vu_hold</code></td><td>The small tick that stays at the recent peak of each level meter.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>If something is wrong</h3>
+    <p>mfp never refuses to start because of a theme. If the theme file is missing, has a typo in an option name, uses a color it does not understand, or names a base that is not built in, mfp shows the <code>default</code> look and writes the reason to its <a href="#config">log file</a>. The same goes for a config file it cannot read: it uses the defaults and logs why. Look at the log if your theme does not appear.</p>
+    <p class="note">Tip: if you copy the example above and nothing changes, check the spelling of the option names. An unknown name makes the whole theme file fail, not just that line.</p>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- Configuration and files -->
+<section id="config" class="doc-section">
+  <div class="container">
+    <div class="section-label">Configuration and files</div>
+    <h2>Where things live</h2>
+    <p>Everything mfp saves is kept in one folder, <code>~/.config/mfp/</code>. If you have set <code>$XDG_CONFIG_HOME</code>, mfp uses <code>$XDG_CONFIG_HOME/mfp/</code> instead.</p>
+    <div class="table-wrap">
+    <table class="doc-table">
+      <caption class="sr-only">Files and folders used by mfp</caption>
+      <thead><tr><th scope="col">Path</th><th scope="col">What it is</th></tr></thead>
+      <tbody>
+        <tr><td><code>config.toml</code></td><td>Your settings: the theme and the starting visualizer style. Optional; you create it.</td></tr>
+        <tr><td><code>themes/</code></td><td>Your own themes, one <code>.toml</code> file each. Optional.</td></tr>
+        <tr><td><code>favorites.json</code></td><td>Your favorite episodes.</td></tr>
+        <tr><td><code>downloads/</code></td><td>Episodes you saved with <code>d</code> or <code>mfp download</code>.</td></tr>
+        <tr><td><code>mfp.log</code></td><td>A short log. mfp writes here when something goes wrong quietly, for example the media-keys connection is not available or a theme could not be loaded.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="note">mfp only reads <code>config.toml</code> and your theme files. It never edits or creates them, so your own comments and formatting are safe. Changes you make with <code>v</code> and <code>V</code> last until you quit; to keep them, edit the file yourself.</p>
+    <p>Settings are read once, when mfp starts. Restart it after editing the files.</p>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- Plain text mode -->
+<section id="plain" class="doc-section">
+  <div class="container">
+    <div class="section-label">Text mode</div>
+    <h2>Plain text mode and pipes</h2>
+    <p>Prefer the original, simple interface? Run <code>mfp play --plain</code>. Instead of a full-screen window, mfp prints status lines and waits for you to type a command and press <code>Enter</code>.</p>
+    <div class="code-block">
+      <code>mfp play --plain</code>
+      <button class="copy-btn" aria-label="Copy the command" onclick="copy(this, 'mfp play --plain')">copy</button>
+    </div>
+    <div class="table-wrap">
+    <table class="doc-table wide">
+      <caption class="sr-only">Commands of text mode</caption>
+      <thead><tr><th scope="col">Type</th><th scope="col">What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>n</code> or <code>next</code></td><td>Next episode</td></tr>
+        <tr><td><code>b</code>, <code>back</code>, <code>prev</code> or <code>previous</code></td><td>Previous episode</td></tr>
+        <tr><td><code>p</code>, <code>pause</code> or <code>play</code></td><td>Pause / resume</td></tr>
+        <tr><td><code>+</code> or <code>up</code></td><td>Volume up</td></tr>
+        <tr><td><code>-</code> or <code>down</code></td><td>Volume down</td></tr>
+        <tr><td><code>m</code> or <code>mute</code></td><td>Mute / unmute</td></tr>
+        <tr><td><code>s</code> or <code>shuffle</code></td><td>Shuffle on / off</td></tr>
+        <tr><td><code>f</code>, <code>fav</code> or <code>favorite</code></td><td>Add / remove favorite</td></tr>
+        <tr><td><code>i</code> or <code>info</code></td><td>Episode info</td></tr>
+        <tr><td><code>d</code> or <code>download</code></td><td>Download this episode</td></tr>
+        <tr><td><code>q</code>, <code>quit</code> or <code>exit</code></td><td>Quit</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Text mode has no visualizer and no themes. The options <code>-e</code>, <code>-s</code> and <code>-f</code> work here too, but <code>--compact</code> does not (it belongs to the full-screen player).</p>
+
+    <h3>Automatic fallback</h3>
+    <p>mfp switches to text mode by itself when it cannot draw a full-screen window: when its input or output is redirected (for example <code>mfp play | cat</code> or a script) or the terminal type is <code>dumb</code>. Typing just <code>mfp</code> in that situation only prints a short overview of the commands, so music never starts by surprise.</p>
+    <p>You can also feed it commands from another program. When the input is redirected, each line is read as a command, and the moving progress line is not drawn. If that input ends, the music keeps playing (closing the input is not a request to quit). Send <code>q</code> before it ends to quit, or stop it with <code>Ctrl+C</code> or your media keys.</p>
+    <div class="code-block">
+      <code>printf 'i\nq\n' | mfp play</code>
+      <button class="copy-btn" aria-label="Copy the example" onclick="copy(this, 'printf \'i\\nq\\n\' | mfp play')">copy</button>
     </div>
   </div>
 </section>
 
 <hr class="divider" />
 
+<!-- Favorites, downloads and list -->
+<section id="library" class="doc-section">
+  <div class="container">
+    <div class="section-label">Your library</div>
+    <h2>Favorites, downloads and the episode list</h2>
+
+    <h3>Favorites</h3>
+    <p>Press <code>f</code> in the player to mark the current episode with a star, or manage them from the command line. To listen to only your favorites, start with <code>mfp play -f</code>.</p>
+    <div class="code-block tall">
+      <code>mfp fav -l                 # show your favorites
+mfp fav -a "Episode 75"    # add one
+mfp fav -r "Episode 75"    # remove one</code>
+      <button class="copy-btn" aria-label="Copy the favorites commands" onclick="copy(this, this.previousElementSibling.textContent)">copy</button>
+    </div>
+
+    <h3>Downloads</h3>
+    <p>Press <code>d</code> in the player, or use the command line, to save an episode in the <code>downloads</code> folder (see <a href="#config">Files</a>). mfp still streams episodes when you play them.</p>
+    <div class="code-block tall">
+      <code>mfp download -e 75         # download episode 75
+mfp download -l            # list what you have downloaded
+mfp download -s            # how much disk space it uses
+mfp download -d "Episode 75"   # delete a download</code>
+      <button class="copy-btn" aria-label="Copy the download commands" onclick="copy(this, this.previousElementSibling.textContent)">copy</button>
+    </div>
+
+    <h3>The episode list</h3>
+    <p><code>mfp list</code> prints every episode in the terminal, which is handy for finding a number to use with <code>-e</code>.</p>
+    <div class="code-block">
+      <code>mfp list</code>
+      <button class="copy-btn" aria-label="Copy the command" onclick="copy(this, 'mfp list')">copy</button>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+
 <!-- Polybar -->
 <section id="polybar" class="polybar-section">
   <div class="container">
-    <div class="section-label">Integrations</div>
-    <h2>MPRIS &amp; Polybar</h2>
+    <div class="section-label">Media keys and integrations</div>
+    <h2>Media keys, MPRIS &amp; Polybar</h2>
+
+    <p style="font-size:14px;color:var(--muted-hi);margin-bottom:24px;max-width:680px">
+      mfp plays nicely with the rest of your desktop. While it runs, your keyboard's media keys (play/pause, next, previous), the media widget of your desktop, and panel widgets such as Polybar or Waybar can see and control it. You can also control it from a script with <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">playerctl</code>. If your system does not support this, mfp keeps playing and just leaves the connection off (the dot in the player stays empty).
+    </p>
+    <div class="code-block" style="margin-bottom:32px">
+      <code>playerctl -p org.mpris.MediaPlayer2.mfp play-pause</code>
+      <button class="copy-btn" aria-label="Copy the playerctl command" onclick="copy(this, 'playerctl -p org.mpris.MediaPlayer2.mfp play-pause')">copy</button>
+    </div>
 
     <p style="font-size:13px;color:var(--muted);margin-bottom:36px;max-width:600px">
       MFP exposes a D-Bus MPRIS interface as <code style="font-family:var(--mono);font-size:11px;color:var(--accent2)">org.mpris.MediaPlayer2.mfp</code>.
@@ -749,6 +1214,20 @@ chmod +x ~/.config/polybar/scripts/mfp-*.sh</code>
 </footer>
 
 <script>
+  async function loadReleaseVersion() {
+    try {
+      const res = await fetch('changelog.json');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const releases = await res.json();
+      const version = releases.find(r => r.version)?.version;
+      const badge = document.getElementById('hero-badge-release');
+      if (version && badge) badge.textContent = version + ' ·';
+    } catch (error) {
+      console.error('Error fetching changelog.json:', error);
+    }
+  }
+  loadReleaseVersion();
+
   function copy(btn, text) {
     navigator.clipboard.writeText(text).then(() => {
       btn.textContent = 'copied';

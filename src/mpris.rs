@@ -65,7 +65,7 @@ impl MprisController {
         let thread_handle = std::thread::spawn(move || {
             // Run async runtime in this thread
             if let Err(e) = async_std::task::block_on(Self::run_async_mpris(state_rx, callback_tx, stop_rx)) {
-                eprintln!("MPRIS thread error: {}", e);
+                crate::logging::log(&format!("MPRIS thread error: {}", e));
             }
         });
 
@@ -75,6 +75,14 @@ impl MprisController {
             stop_tx: Some(stop_tx),
             thread_handle: Some(thread_handle),
         })
+    }
+
+    /// Whether the MPRIS thread is still alive (false once it failed to
+    /// register on the bus or has exited).
+    pub fn is_running(&self) -> bool {
+        self.thread_handle
+            .as_ref()
+            .is_some_and(|handle| !handle.is_finished())
     }
 
     /// Get receiver for commands from MPRIS callbacks
@@ -185,7 +193,7 @@ impl MprisController {
                 match select(state_fut, stop_fut).await {
                     futures::future::Either::Left((Ok(update), _)) => {
                         if let Err(e) = handle_state_update(&player_clone, update).await {
-                            eprintln!("Error handling state update: {}", e);
+                            crate::logging::log(&format!("Error handling state update: {}", e));
                         }
                         continue;
                     }

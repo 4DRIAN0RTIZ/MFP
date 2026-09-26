@@ -1,22 +1,8 @@
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
+
+use crate::models::Episode;
 
 const RSS_URL: &str = "https://musicforprogramming.net/rss.xml";
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Episode {
-    pub title: String,
-    pub audio_url: String,
-    pub duration: String,
-    pub pub_date: String,
-    pub description: String,
-}
-
-impl Episode {
-    pub fn display_name(&self) -> &str {
-        &self.title
-    }
-}
 
 pub struct Feed {
     episodes: Vec<Episode>,

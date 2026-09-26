@@ -6,6 +6,8 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use crate::audio_tap::{TapHandle, TapSource};
+
 const BUFFER_SIZE: usize = 512 * 1024; // Initial buffer: 512 KB
 const CHUNK_SIZE: usize = 32 * 1024; // Chunk size: 32 KB
 
@@ -75,6 +77,17 @@ impl Seek for StreamingBuffer {
     }
 }
 
+/// Stages of stream start-up reported to the caller of [`Player::play`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlayerStage {
+    /// Audio sink created; the stream request is starting.
+    Connecting,
+    /// Filling the initial buffer.
+    Buffering,
+    /// Initial buffer filled; playback is starting.
+    Ready,
+}
+
 pub struct Player {
     _stream: OutputStream,
     stream_handle: OutputStreamHandle,
@@ -84,6 +97,8 @@ pub struct Player {
     is_paused: Arc<Mutex<bool>>,
     start_time: Arc<Mutex<Option<Instant>>>,
     paused_duration: Arc<Mutex<Duration>>,
+    /// Shared ring with the samples being played (read by the visualizer).
+    tap: TapHandle,
 }
 
 impl Player {
@@ -101,18 +116,49 @@ impl Player {
             is_paused: Arc::new(Mutex::new(false)),
             start_time: Arc::new(Mutex::new(None)),
             paused_duration: Arc::new(Mutex::new(Duration::from_secs(0))),
+            tap: TapHandle::new(),
         })
     }
 
-    pub fn play(&self, url: &str) -> Result<()> {
+    /// Handle to the audio tap (recent mono samples and levels). Cloning it
+    /// shares the same buffer; it is cleared on `stop` and on each new track.
+    pub fn tap(&self) -> TapHandle {
+        self.tap.clone()
+    }
+
+    /// Starts streaming `url` and blocks ~1.5s to let audio begin.
+    ///
+    /// Same as [`Player::start`] followed by a fixed wait; used by the plain
+    /// CLI loop. Front ends that must not block should call `start` instead.
+    pub fn play(
+        &self,
+        url: &str,
+        on_stage: impl Fn(PlayerStage) + Send + Sync + 'static,
+    ) -> Result<()> {
+        self.start(url, on_stage)?;
+        std::thread::sleep(std::time::Duration::from_millis(1500));
+        Ok(())
+    }
+
+    /// Starts streaming `url` without waiting, reporting stages via `on_stage`.
+    ///
+    /// `Connecting` is reported on the calling thread; `Buffering` and `Ready`
+    /// are reported from the playback thread, so the callback must be
+    /// `Send + Sync`. The player itself never prints. `Player` is not `Send`
+    /// (it owns the audio `OutputStream`), so it must stay on the thread that
+    /// created it; this call only creates the sink and spawns worker threads.
+    pub fn start(
+        &self,
+        url: &str,
+        on_stage: impl Fn(PlayerStage) + Send + Sync + 'static,
+    ) -> Result<()> {
+        let on_stage: Arc<dyn Fn(PlayerStage) + Send + Sync> = Arc::new(on_stage);
         self.stop();
 
         *self.start_time.lock().unwrap() = Some(Instant::now());
         *self.paused_duration.lock().unwrap() = Duration::from_secs(0);
 
-        print!("Connecting...");
-        use std::io::Write;
-        std::io::stdout().flush().ok();
+        on_stage(PlayerStage::Connecting);
 
         let sink = Arc::new(
             Sink::try_new(&self.stream_handle).context("No se pudo crear el sink de audio")?,
@@ -131,14 +177,13 @@ impl Player {
         });
 
         let sink_clone = Arc::clone(&sink);
+        let tap = self.tap.clone();
         let playback_handle = thread::spawn(move || {
-            let _ = Self::play_stream(rx, &sink_clone, download_complete);
+            let _ = Self::play_stream(rx, &sink_clone, download_complete, on_stage, tap);
         });
 
         *self.download_thread.lock().unwrap() = Some(download_handle);
         *self.playback_thread.lock().unwrap() = Some(playback_handle);
-
-        std::thread::sleep(std::time::Duration::from_millis(1500));
 
         Ok(())
     }
@@ -178,12 +223,12 @@ impl Player {
         rx: Receiver<Vec<u8>>,
         sink: &Sink,
         download_complete: Arc<Mutex<bool>>,
+        on_stage: Arc<dyn Fn(PlayerStage) + Send + Sync>,
+        tap: TapHandle,
     ) -> Result<()> {
         let mut initial_buffer = Vec::new();
 
-        print!(" buffering...");
-        use std::io::Write;
-        std::io::stdout().flush().ok();
+        on_stage(PlayerStage::Buffering);
 
         while initial_buffer.len() < BUFFER_SIZE {
             match rx.recv() {
@@ -197,7 +242,7 @@ impl Player {
             }
         }
 
-        println!(" OK\n");
+        on_stage(PlayerStage::Ready);
 
         let buffer_arc = Arc::new(Mutex::new(initial_buffer));
         let buffer_clone = Arc::clone(&buffer_arc);
@@ -215,7 +260,8 @@ impl Player {
 
         let source = Decoder::new(buf_reader).context("No se pudo decodificar el audio")?;
 
-        sink.append(source);
+        // The tap forwards every sample unchanged; see `audio_tap`.
+        sink.append(TapSource::new(source, tap));
         sink.sleep_until_end();
 
         Ok(())
@@ -228,6 +274,7 @@ impl Player {
 
         let _ = self.playback_thread.lock().unwrap().take();
         let _ = self.download_thread.lock().unwrap().take();
+        self.tap.clear();
 
         *self.is_paused.lock().unwrap() = false;
     }
@@ -337,5 +384,79 @@ pub fn format_duration(seconds: u64) -> String {
 impl Drop for Player {
     fn drop(&mut self) {
         self.stop();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_duration_minutes_seconds() {
+        assert_eq!(parse_duration("00:00"), Some(0));
+        assert_eq!(parse_duration("01:30"), Some(90));
+        assert_eq!(parse_duration("59:59"), Some(3599));
+    }
+
+    #[test]
+    fn parse_duration_hours() {
+        assert_eq!(parse_duration("1:00:00"), Some(3600));
+        assert_eq!(parse_duration("01:02:03"), Some(3723));
+    }
+
+    #[test]
+    fn parse_duration_does_not_range_check_fields() {
+        assert_eq!(parse_duration("90:90"), Some(5490));
+        assert_eq!(parse_duration("0:75:00"), Some(4500));
+    }
+
+    #[test]
+    fn parse_duration_rejects_wrong_shapes() {
+        assert_eq!(parse_duration(""), None);
+        assert_eq!(parse_duration("90"), None);
+        assert_eq!(parse_duration("1:2:3:4"), None);
+        assert_eq!(parse_duration(":"), None);
+        assert_eq!(parse_duration("1:"), None);
+        assert_eq!(parse_duration(":30"), None);
+    }
+
+    #[test]
+    fn parse_duration_rejects_non_numeric_and_negative() {
+        assert_eq!(parse_duration("aa:bb"), None);
+        assert_eq!(parse_duration("-1:30"), None);
+        assert_eq!(parse_duration("1:30.5"), None);
+    }
+
+    #[test]
+    fn parse_duration_does_not_trim_whitespace() {
+        assert_eq!(parse_duration(" 1:30"), None);
+        assert_eq!(parse_duration("1: 30"), None);
+    }
+
+    #[test]
+    fn format_duration_under_one_hour() {
+        assert_eq!(format_duration(0), "00:00");
+        assert_eq!(format_duration(5), "00:05");
+        assert_eq!(format_duration(90), "01:30");
+        assert_eq!(format_duration(3599), "59:59");
+    }
+
+    #[test]
+    fn format_duration_with_hours() {
+        assert_eq!(format_duration(3600), "01:00:00");
+        assert_eq!(format_duration(3723), "01:02:03");
+        assert_eq!(format_duration(36000), "10:00:00");
+    }
+
+    #[test]
+    fn format_duration_hours_do_not_wrap_at_24() {
+        assert_eq!(format_duration(100 * 3600), "100:00:00");
+    }
+
+    #[test]
+    fn format_then_parse_roundtrips() {
+        for secs in [0u64, 59, 60, 3599, 3600, 7325] {
+            assert_eq!(parse_duration(&format_duration(secs)), Some(secs));
+        }
     }
 }
