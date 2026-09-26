@@ -10,10 +10,70 @@ use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
-use std::io::{self, Write};
+use std::io::{self, BufRead, IsTerminal, Write};
+use std::sync::mpsc::{self, Receiver, TryRecvError};
+use std::thread;
 use std::time::Duration;
 
-/// Runs the full-screen TUI player (opt-in via `mfp play --tui`).
+/// How the plain loop reads commands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InputMode {
+    /// stdin is a terminal: raw mode, keys typed until Enter, live progress line.
+    Tty,
+    /// stdin is a pipe/file/`/dev/null`: no raw mode and no crossterm reads;
+    /// commands arrive as lines read by a background thread.
+    Lines,
+}
+
+/// Picks the input mode from whether stdin is a terminal (raw mode and
+/// crossterm key events need one).
+fn input_mode(stdin_is_tty: bool) -> InputMode {
+    if stdin_is_tty {
+        InputMode::Tty
+    } else {
+        InputMode::Lines
+    }
+}
+
+/// Maps a typed command (already trimmed) to a playback action. `i`/`d` and
+/// unknown input are handled by the callers.
+fn parse_action(command: &str) -> Option<Action> {
+    match command {
+        "n" | "next" => Some(Action::Next),
+        "b" | "back" | "prev" | "previous" => Some(Action::Previous),
+        "p" | "pause" | "play" => Some(Action::PlayPause),
+        "+" | "up" => Some(Action::VolumeUp),
+        "-" | "down" => Some(Action::VolumeDown),
+        "m" | "mute" => Some(Action::ToggleMute),
+        "s" | "shuffle" => Some(Action::ToggleShuffle),
+        "f" | "fav" | "favorite" => Some(Action::ToggleFavorite),
+        "q" | "quit" | "exit" => Some(Action::Quit),
+        _ => None,
+    }
+}
+
+const UNKNOWN_COMMAND_HELP: &str = "Use: n (next) | b (back) | p (pause) | +/- (vol) | m (mute) | s (shuffle) | f (fav) | i (info) | d (download) | q (quit)";
+
+/// Reads stdin lines on a background thread. The channel disconnects at EOF
+/// (or on a read error); the thread ends with the process.
+fn spawn_stdin_lines() -> Receiver<String> {
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        for line in io::stdin().lock().lines() {
+            match line {
+                Ok(line) => {
+                    if tx.send(line).is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+    rx
+}
+
+/// Runs the full-screen TUI player (the default UI of `mfp` and `mfp play`).
 pub(super) fn play_tui(
     episode_num: Option<usize>,
     shuffle: bool,
@@ -36,7 +96,12 @@ pub(super) fn play_tui(
     )
 }
 
-/// Runs the terminal radio player (playlist loop, keyboard and MPRIS control).
+/// Runs the plain text player (`--plain` or automatic fallback): playlist loop
+/// with typed commands followed by Enter, plus MPRIS control.
+///
+/// With a terminal on stdin it uses raw mode and a live progress line (the
+/// progress line is skipped when stdout is not a terminal). Otherwise it runs
+/// in line mode, see [`run_line_session`].
 pub(super) fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bool) -> Result<()> {
     println!("Cargando feed...");
     let feed = Feed::fetch()?;
@@ -66,6 +131,12 @@ pub(super) fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bo
         }
     };
     let mpris_cmd_rx = mpris.as_ref().map(|m| m.command_receiver());
+
+    let line_rx = match input_mode(io::stdin().is_terminal()) {
+        InputMode::Tty => None,
+        InputMode::Lines => Some(spawn_stdin_lines()),
+    };
+    let stdout_is_tty = io::stdout().is_terminal();
 
     loop {
         let (episode_title, episode_duration, episode_url) = match playlist.current() {
@@ -113,6 +184,23 @@ pub(super) fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bo
         let downloader = Downloader::new()?;
         let total_seconds = player::parse_duration(&episode_duration).unwrap_or(0);
 
+        if let Some(line_rx) = line_rx.as_ref() {
+            let mut session = LineSession {
+                line_rx,
+                mpris_cmd_rx: mpris_cmd_rx.as_ref(),
+                player: &player,
+                mpris: mpris.as_ref(),
+                downloader: &downloader,
+                episode_title: &episode_title,
+                episode_duration: &episode_duration,
+                episode_url: &episode_url,
+            };
+            if run_line_session(&mut session, &mut playlist, &mut favorites) {
+                return Ok(());
+            }
+            continue;
+        }
+
         enable_raw_mode()?;
 
         let mut command_buffer = String::new();
@@ -154,11 +242,13 @@ pub(super) fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bo
             let filled = ((percent as usize * bar_length) / 100).min(bar_length);
             let bar: String = "━".repeat(filled) + &"─".repeat(bar_length - filled);
 
-            print!(
-                "\r[{}/{}] {} {}% | -{} > {}",
-                elapsed_str, total_str, bar, percent, remaining_str, command_buffer
-            );
-            io::stdout().flush()?;
+            if stdout_is_tty {
+                print!(
+                    "\r[{}/{}] {} {}% | -{} > {}",
+                    elapsed_str, total_str, bar, percent, remaining_str, command_buffer
+                );
+                io::stdout().flush()?;
+            }
 
             if event::poll(Duration::from_millis(100))? {
                 if let Event::Key(KeyEvent {
@@ -174,18 +264,7 @@ pub(super) fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bo
 
                             disable_raw_mode()?;
 
-                            let action = match command.as_str() {
-                                "n" | "next" => Some(Action::Next),
-                                "b" | "back" | "prev" | "previous" => Some(Action::Previous),
-                                "p" | "pause" | "play" => Some(Action::PlayPause),
-                                "+" | "up" => Some(Action::VolumeUp),
-                                "-" | "down" => Some(Action::VolumeDown),
-                                "m" | "mute" => Some(Action::ToggleMute),
-                                "s" | "shuffle" => Some(Action::ToggleShuffle),
-                                "f" | "fav" | "favorite" => Some(Action::ToggleFavorite),
-                                "q" | "quit" | "exit" => Some(Action::Quit),
-                                _ => None,
-                            };
+                            let action = parse_action(&command);
 
                             let should_break = if let Some(action) = action {
                                 print!("\r{}\r", " ".repeat(120));
@@ -255,7 +334,7 @@ pub(super) fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bo
                                     _ => {
                                         print!("\r{}\r", " ".repeat(120));
                                         println!("Unknown command");
-                                        println!("Use: n (next) | b (back) | p (pause) | +/- (vol) | m (mute) | s (shuffle) | f (fav) | i (info) | d (download) | q (quit)");
+                                        println!("{}", UNKNOWN_COMMAND_HELP);
                                         false
                                     }
                                 }
@@ -282,4 +361,192 @@ pub(super) fn play_radio(episode_num: Option<usize>, shuffle: bool, fav_mode: bo
     }
 
     Ok(())
+}
+
+/// Everything the line mode needs about the episode being played.
+struct LineSession<'a> {
+    line_rx: &'a Receiver<String>,
+    mpris_cmd_rx: Option<&'a async_channel::Receiver<crate::mpris::MprisCommand>>,
+    player: &'a Player,
+    mpris: Option<&'a MprisController>,
+    downloader: &'a Downloader,
+    episode_title: &'a str,
+    episode_duration: &'a str,
+    episode_url: &'a str,
+}
+
+/// Line mode: commands are lines read from a non-terminal stdin (same words as
+/// the typed commands), with no raw mode and no live progress line, so output
+/// stays readable in pipes and logs; each command prints its response line(s).
+///
+/// EOF rule: a closed stdin is not a quit request. Playback continues and
+/// MPRIS commands keep being serviced until MPRIS Quit, `q` (if it arrived
+/// before EOF) or a signal such as SIGINT stops the process. The loop sleeps
+/// ~100ms per tick, so it never spins.
+///
+/// Returns `true` when the player should quit, `false` to move to the
+/// episode now selected by the playlist.
+fn run_line_session(
+    session: &mut LineSession<'_>,
+    playlist: &mut Playlist,
+    favorites: &mut Favorites,
+) -> bool {
+    let mut stdin_open = true;
+    loop {
+        if let Some(cmd) = session.mpris_cmd_rx.and_then(|rx| rx.try_recv().ok()) {
+            match playback::apply(
+                Action::from(cmd),
+                session.player,
+                playlist,
+                favorites,
+                session.mpris,
+                session.episode_title,
+            ) {
+                Outcome::Continue(_) => {}
+                Outcome::NextEpisode | Outcome::PreviousEpisode => return false,
+                Outcome::Quit => return true,
+            }
+        }
+
+        if stdin_open {
+            match session.line_rx.try_recv() {
+                Ok(line) => {
+                    if let Some(quit) = handle_line(&line, session, playlist, favorites) {
+                        return quit;
+                    }
+                }
+                Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Disconnected) => stdin_open = false,
+            }
+        }
+
+        thread::sleep(Duration::from_millis(100));
+    }
+}
+
+/// Handles one command line. `Some(true)` = quit, `Some(false)` = change
+/// episode, `None` = keep playing.
+fn handle_line(
+    line: &str,
+    session: &LineSession<'_>,
+    playlist: &mut Playlist,
+    favorites: &mut Favorites,
+) -> Option<bool> {
+    let command = line.trim();
+    if let Some(action) = parse_action(command) {
+        return match playback::apply(
+            action,
+            session.player,
+            playlist,
+            favorites,
+            session.mpris,
+            session.episode_title,
+        ) {
+            Outcome::Continue(msg) => {
+                if let Some(msg) = msg {
+                    println!("{}", msg);
+                }
+                None
+            }
+            Outcome::NextEpisode | Outcome::PreviousEpisode => Some(false),
+            Outcome::Quit => Some(true),
+        };
+    }
+    match command {
+        "i" | "info" => {
+            println!("\nEpisode: {}", session.episode_title);
+            println!("Duration: {}", session.episode_duration);
+            println!("Volume: {:.0}%", session.player.volume() * 100.0);
+            println!(
+                "Status: {}",
+                if session.player.is_paused() {
+                    "Paused"
+                } else {
+                    "Playing"
+                }
+            );
+            println!(
+                "Shuffle: {}",
+                if playlist.is_shuffled() { "ON" } else { "OFF" }
+            );
+            println!(
+                "Favorite: {}\n",
+                if favorites.is_favorite(session.episode_title) {
+                    "Yes"
+                } else {
+                    "No"
+                }
+            );
+        }
+        "d" | "download" => {
+            println!("\nDownloading episode for offline...");
+            match session.downloader.download_episode(
+                session.episode_title,
+                session.episode_url,
+                super::download::render_download_event,
+            ) {
+                Ok(_) => println!("Episode downloaded\n"),
+                Err(e) => println!("Error: {}\n", e),
+            }
+        }
+        "" => {}
+        _ => {
+            println!("Unknown command");
+            println!("{}", UNKNOWN_COMMAND_HELP);
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn input_mode_follows_stdin_tty() {
+        assert_eq!(input_mode(true), InputMode::Tty);
+        assert_eq!(input_mode(false), InputMode::Lines);
+    }
+
+    #[test]
+    fn parse_action_maps_every_alias() {
+        let cases = [
+            ("n", Action::Next),
+            ("next", Action::Next),
+            ("b", Action::Previous),
+            ("back", Action::Previous),
+            ("prev", Action::Previous),
+            ("previous", Action::Previous),
+            ("p", Action::PlayPause),
+            ("pause", Action::PlayPause),
+            ("play", Action::PlayPause),
+            ("+", Action::VolumeUp),
+            ("up", Action::VolumeUp),
+            ("-", Action::VolumeDown),
+            ("down", Action::VolumeDown),
+            ("m", Action::ToggleMute),
+            ("mute", Action::ToggleMute),
+            ("s", Action::ToggleShuffle),
+            ("shuffle", Action::ToggleShuffle),
+            ("f", Action::ToggleFavorite),
+            ("fav", Action::ToggleFavorite),
+            ("favorite", Action::ToggleFavorite),
+            ("q", Action::Quit),
+            ("quit", Action::Quit),
+            ("exit", Action::Quit),
+        ];
+        for (input, expected) in cases {
+            assert!(
+                parse_action(input) == Some(expected),
+                "input {input:?} mapped wrongly"
+            );
+        }
+    }
+
+    #[test]
+    fn parse_action_leaves_info_download_and_unknown_to_callers() {
+        for input in ["i", "info", "d", "download", "", "zzz", "N", "n "] {
+            assert!(parse_action(input).is_none(), "input {input:?}");
+        }
+    }
 }

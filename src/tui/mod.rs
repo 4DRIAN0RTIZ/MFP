@@ -1,5 +1,5 @@
 //! Terminal UI (ratatui): compact player view and full view (episode list plus
-//! status panel), opt-in via `mfp play --tui`.
+//! status panel), the default UI of `mfp` and `mfp play`.
 //!
 //! The UI loop is synchronous. Anything slow (feed fetch, stream start-up,
 //! downloads) runs on std threads and reports back over an mpsc channel; MPRIS

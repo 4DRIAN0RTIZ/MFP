@@ -445,7 +445,7 @@
       <div class="feature-card">
         <span class="feature-icon">🎛</span>
         <h3>Full Playback Controls</h3>
-        <p>Play/pause, volume, mute, next, previous, shuffle — all from the keyboard while it runs.</p>
+        <p>Full-screen TUI with an episode list; play/pause, volume, mute, next, previous, shuffle — all from the keyboard while it runs.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">📡</span>
@@ -531,11 +531,14 @@ cargo build --release</code>
 
       <div class="usage-card">
         <div class="usage-card-header">▶ Play</div>
-        <pre><span class="cmd">mfp play</span>                  <span class="comment"># first episode</span>
+        <pre><span class="cmd">mfp</span>                       <span class="comment"># start the TUI</span>
+<span class="cmd">mfp play</span>                  <span class="comment"># same, first episode</span>
 <span class="cmd">mfp play</span> <span class="flag">-e 75</span>           <span class="comment"># specific episode</span>
 <span class="cmd">mfp play</span> <span class="flag">-s</span>              <span class="comment"># shuffle</span>
 <span class="cmd">mfp play</span> <span class="flag">-f</span>              <span class="comment"># favorites only</span>
-<span class="cmd">mfp play</span> <span class="flag">-f -s</span>           <span class="comment"># favorites + shuffle</span></pre>
+<span class="cmd">mfp play</span> <span class="flag">-f -s</span>           <span class="comment"># favorites + shuffle</span>
+<span class="cmd">mfp play</span> <span class="flag">--compact</span>       <span class="comment"># compact TUI layout</span>
+<span class="cmd">mfp play</span> <span class="flag">--plain</span>         <span class="comment"># text UI, type cmd + Enter</span></pre>
       </div>
 
       <div class="usage-card">
@@ -569,6 +572,9 @@ cargo build --release</code>
   <div class="container">
     <div class="section-label">Keyboard shortcuts</div>
     <h2>During playback</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:24px;max-width:600px">
+      Single-key controls in the default TUI. With <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">--plain</code> (or when output is not a terminal) type the same letters and press Enter.
+    </p>
     <div class="controls-grid">
       <div class="control-row"><span class="kbd">n</span><span>Next episode</span></div>
       <div class="control-row"><span class="kbd">b</span><span>Previous episode</span></div>
@@ -580,7 +586,11 @@ cargo build --release</code>
       <div class="control-row"><span class="kbd">f</span><span>Toggle favorite</span></div>
       <div class="control-row"><span class="kbd">d</span><span>Download episode</span></div>
       <div class="control-row"><span class="kbd">i</span><span>Episode info</span></div>
-      <div class="control-row"><span class="kbd">q</span><span>Quit</span></div>
+      <div class="control-row"><span class="kbd">v</span><span>Toggle compact / full layout</span></div>
+      <div class="control-row"><span class="kbd">↑ ↓ j k</span><span>Move in episode list</span></div>
+      <div class="control-row"><span class="kbd">Enter</span><span>Play selected episode</span></div>
+      <div class="control-row"><span class="kbd">/</span><span>Search episodes (Esc clears)</span></div>
+      <div class="control-row"><span class="kbd">q</span><span>Quit (also Ctrl+C)</span></div>
     </div>
   </div>
 </section>
