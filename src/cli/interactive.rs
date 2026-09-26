@@ -11,7 +11,7 @@ pub(super) fn interactive_mode() -> Result<()> {
     println!("  mfp play -e 75              - Reproduce episodio específico");
     println!("  mfp play -s                 - Reproduce en modo shuffle");
     println!("  mfp play -f                 - Reproduce solo favoritos");
-    println!("  mfp play --compact          - TUI en diseño compacto");
+    println!("  mfp play --compact          - TUI con la lista oculta (h la muestra)");
     println!("  mfp play --plain            - Interfaz de texto (comandos + Enter)");
     println!("  mfp fav -l                  - Lista favoritos");
     println!("  mfp fav -a \"Episode XX\"     - Agrega a favoritos");

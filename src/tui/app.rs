@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
+use crate::config::VisualizerConfig;
 use crate::operations::downloads::DownloadEvent;
 use crate::player::PlayerStage;
 
@@ -125,7 +126,7 @@ pub struct App {
     pub favorites: HashSet<String>,
     /// Index into `episodes` of the playing episode.
     pub playing: Option<usize>,
-    /// Layout preference (`v` and `--compact` change it).
+    /// Layout preference (`h` and `--compact` change it).
     pub layout_pref: LayoutPref,
     /// Search query typed so far (applied live as a filter).
     pub query: String,
@@ -140,9 +141,9 @@ pub struct App {
     /// Terminal size seen by the last draw.
     viewport: (u16, u16),
     status: Option<(String, StatusKind, Instant)>,
-    /// Whether the audio visualizer is switched on (`W` toggles it).
+    /// Whether the audio visualizer is switched on (`V` toggles it).
     pub viz_enabled: bool,
-    /// Current visualizer style (`w` rotates it).
+    /// Current visualizer style (`v` rotates it).
     pub viz_style: VisualStyle,
     /// Latest visualizer frame, refreshed by the event loop before each draw.
     pub viz_data: VisualizerData,
@@ -207,7 +208,7 @@ impl App {
         self.episode.is_some() && !self.paused && self.activity == Activity::Idle
     }
 
-    /// `w`: switches the visualizer on if it was off, otherwise moves to the
+    /// `v`: switches the visualizer on if it was off, otherwise moves to the
     /// next style. Returns the status message to show.
     pub fn viz_next(&mut self) -> String {
         if self.viz_enabled {
@@ -218,13 +219,34 @@ impl App {
         format!("Visualizer: {}", self.viz_style.name())
     }
 
-    /// `W`: toggles the visualizer on or off. Returns the status message.
+    /// `V`: toggles the visualizer on or off. Returns the status message.
     pub fn viz_toggle(&mut self) -> String {
         self.viz_enabled = !self.viz_enabled;
         if self.viz_enabled {
             format!("Visualizer: {}", self.viz_style.name())
         } else {
             "Visualizer: off".to_string()
+        }
+    }
+
+    /// Initialises the visualizer from the `[visualizer]` config section
+    /// (read once at start; the app never writes it back). An unknown style
+    /// name keeps the default and returns a message for the log.
+    pub fn apply_visualizer_config(&mut self, config: &VisualizerConfig) -> Option<String> {
+        self.viz_enabled = config.enabled;
+        match VisualStyle::from_name(&config.style) {
+            Some(style) => {
+                self.viz_style = style;
+                None
+            }
+            None => {
+                self.viz_style = VisualStyle::default();
+                Some(format!(
+                    "config: unknown visualizer style {:?}; using {}",
+                    config.style,
+                    self.viz_style.name()
+                ))
+            }
         }
     }
 
@@ -249,11 +271,26 @@ impl App {
         self.viewport = (width, height);
     }
 
+    /// `h`: hides or shows the episode list (compact layout = list hidden)
+    /// and pins the choice for the session. Returns the status message, or
+    /// `None` (leaving the preference alone) when the list was requested but
+    /// the terminal is too small for it.
+    pub fn toggle_list(&mut self) -> Option<&'static str> {
+        if self.toggle_layout() {
+            Some(match self.layout_pref {
+                LayoutPref::Compact => "List: hidden",
+                _ => "List: shown",
+            })
+        } else {
+            None
+        }
+    }
+
     /// Switches between compact and full and pins the choice for the session.
     ///
     /// Returns `false` (leaving the preference alone) when the full view was
     /// requested but the terminal is too small for it.
-    pub fn toggle_layout(&mut self) -> bool {
+    fn toggle_layout(&mut self) -> bool {
         match self.layout() {
             LayoutMode::Full => {
                 self.layout_pref = LayoutPref::Compact;
@@ -536,7 +573,7 @@ mod tests {
         let mut app = App::new(false);
         assert_eq!(app.viz_toggle(), "Visualizer: off");
         assert!(!app.viz_enabled);
-        // `w` while off switches it back on keeping the style.
+        // `v` while off switches it back on keeping the style.
         assert_eq!(app.viz_next(), "Visualizer: bars");
         assert!(app.viz_enabled);
         assert_eq!(app.viz_toggle(), "Visualizer: off");
@@ -640,12 +677,12 @@ mod tests {
         let mut app = App::new(false);
         app.set_viewport(110, 30);
         assert_eq!(app.layout(), LayoutMode::Full);
-        assert!(app.toggle_layout());
+        assert_eq!(app.toggle_list(), Some("List: hidden"));
         assert_eq!(app.layout_pref, LayoutPref::Compact);
         // Resizing does not undo the manual choice.
         app.set_viewport(200, 60);
         assert_eq!(app.layout(), LayoutMode::Compact);
-        assert!(app.toggle_layout());
+        assert_eq!(app.toggle_list(), Some("List: shown"));
         assert_eq!(app.layout_pref, LayoutPref::Full);
         // A forced full view then survives a shrink to a still-fitting size.
         app.set_viewport(70, 20);
@@ -657,8 +694,90 @@ mod tests {
         let mut app = App::new(false);
         app.set_viewport(50, 20);
         assert_eq!(app.layout(), LayoutMode::Compact);
-        assert!(!app.toggle_layout());
+        assert_eq!(app.toggle_list(), None);
         assert_eq!(app.layout_pref, LayoutPref::Auto);
+    }
+
+    #[test]
+    fn h_cycles_auto_hidden_shown_and_compact_start_is_hidden() {
+        let mut app = App::new(false);
+        app.set_viewport(110, 30);
+        assert_eq!(app.layout(), LayoutMode::Full);
+        assert_eq!(app.toggle_list(), Some("List: hidden"));
+        assert_eq!(app.layout(), LayoutMode::Compact);
+        assert_eq!(app.toggle_list(), Some("List: shown"));
+        assert_eq!(app.layout(), LayoutMode::Full);
+        // `--compact` start state: list hidden, `h` shows it.
+        let mut app = App::new(false);
+        app.layout_pref = LayoutPref::Compact;
+        app.set_viewport(110, 30);
+        assert_eq!(app.layout(), LayoutMode::Compact);
+        assert_eq!(app.toggle_list(), Some("List: shown"));
+        assert_eq!(app.layout(), LayoutMode::Full);
+    }
+
+    fn viz_config(style: &str, enabled: bool) -> VisualizerConfig {
+        VisualizerConfig {
+            style: style.into(),
+            enabled,
+        }
+    }
+
+    #[test]
+    fn visualizer_config_initialises_the_app() {
+        let mut app = App::new(false);
+        assert_eq!(app.apply_visualizer_config(&viz_config("wave", true)), None);
+        assert_eq!((app.viz_style, app.viz_enabled), (VisualStyle::Wave, true));
+        assert_eq!(
+            app.apply_visualizer_config(&viz_config("MIRROR", false)),
+            None
+        );
+        assert_eq!(
+            (app.viz_style, app.viz_enabled),
+            (VisualStyle::Mirror, false)
+        );
+        // Off at start: `v` turns it on keeping the configured style.
+        assert_eq!(app.viz_next(), "Visualizer: mirror");
+        assert!(app.viz_enabled);
+    }
+
+    #[test]
+    fn unknown_visualizer_style_falls_back_to_bars_with_a_message() {
+        let mut app = App::new(false);
+        app.viz_style = VisualStyle::Vu;
+        let msg = app.apply_visualizer_config(&viz_config("nope", true));
+        assert_eq!(app.viz_style, VisualStyle::Bars);
+        assert!(msg.is_some_and(|m| m.contains("nope")));
+    }
+
+    #[test]
+    fn missing_visualizer_section_keeps_the_defaults() {
+        let mut app = App::new(false);
+        assert_eq!(
+            app.apply_visualizer_config(&crate::config::Config::default().visualizer),
+            None
+        );
+        assert_eq!((app.viz_style, app.viz_enabled), (VisualStyle::Bars, true));
+    }
+
+    #[test]
+    fn loading_config_and_initialising_the_app_never_writes_the_file() {
+        let dir = std::env::temp_dir().join(format!("mfp-app-ro-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let path = dir.join("config.toml");
+        let original = "[visualizer]\nstyle = \"area\"\nenabled = false\n";
+        std::fs::write(&path, original).expect("write");
+        let (config, problem) = crate::config::Config::load_from(&path);
+        assert_eq!(problem, None);
+        let mut app = App::new(false);
+        assert_eq!(app.apply_visualizer_config(&config.visualizer), None);
+        // Session-only changes do not touch the file either.
+        app.viz_next();
+        app.viz_toggle();
+        assert_eq!(std::fs::read_to_string(&path).expect("read"), original);
+        assert_eq!(std::fs::read_dir(&dir).expect("dir").count(), 1);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

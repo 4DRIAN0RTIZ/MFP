@@ -24,7 +24,7 @@ mfp                 # start the TUI (same as `mfp play`)
 mfp play -e 75      # start at a specific episode
 mfp play -s         # shuffle
 mfp play -f         # favorites only
-mfp play --compact  # start in the compact (player only) layout
+mfp play --compact  # start with the episode list hidden (player only)
 mfp play --plain    # plain text UI (typed commands, see below)
 mfp list            # list all episodes
 mfp fav -l          # manage favorites (-a / -r to add / remove)
@@ -43,7 +43,8 @@ combined. Run `mfp --help` or `mfp play --help` for details.
 | `+` | Volume up | `-` | Volume down |
 | `s` | Toggle shuffle | `f` | Toggle favorite |
 | `d` | Download episode | `i` | Episode info |
-| `v` | Toggle compact/full layout | `q`, `Ctrl+C` | Quit |
+| `h` | Hide/show the episode list | `q`, `Ctrl+C` | Quit |
+| `v` | Next visualizer style | `V` | Visualizer on/off |
 | `Up`/`Down`, `j`/`k` | Move selection | `PageUp`/`PageDown` | Move by a page |
 | `Home`/`g` | First episode | `End`/`G` | Last episode |
 | `Enter` | Play the selected episode | `/` | Search episodes |
@@ -55,12 +56,26 @@ arrow, `PageUp`/`PageDown`, `Home` and `End` keys still move the selection.
 
 ### Layouts
 
-- **Full**: episode list on the left, player and status on the right.
-- **Compact**: player only.
+- **Full**: episode list on the left, player, visualizer and status on the right.
+- **Compact** (list hidden): player and visualizer at full width.
 
 By default the layout is chosen from the terminal size: full at 80x16 or
-larger, compact below that. `v` toggles between compact and full (full needs at
-least 64x12). The list keys (selection, `Enter`, `/`) only act in the full layout. `--compact` starts in compact.
+larger, compact below that. `h` hides or shows the episode list (showing it needs at
+least 64x12). The list keys (selection, `Enter`, `/`) only act while the list is shown. `--compact` starts with the list hidden.
+
+## Configuration
+
+Optional `~/.config/mfp/config.toml`, read once at start (mfp never writes it;
+`v`/`V` changes last for the session only):
+
+```toml
+[theme]
+active = "nord"      # built-in preset or themes/<name>.toml
+
+[visualizer]
+style = "wave"       # bars, mirror, wave, dots, area, vu
+enabled = true
+```
 
 ## Plain mode
 

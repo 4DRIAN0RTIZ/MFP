@@ -66,11 +66,11 @@ struct PlayArgs {
     /// progress line is omitted.
     #[arg(long)]
     plain: bool,
-    /// Start the TUI in the compact (player only) layout
+    /// Start the TUI with the episode list hidden (player only)
     ///
     /// Without it the TUI picks the full layout (episode list + player) when
     /// the terminal is at least 80x16, and the compact one otherwise. Press
-    /// `v` in the TUI to switch layouts. Cannot be combined with --plain.
+    /// `h` in the TUI to hide or show the list. Cannot be combined with --plain.
     #[arg(long, conflicts_with = "plain")]
     compact: bool,
 }

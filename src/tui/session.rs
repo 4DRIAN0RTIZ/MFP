@@ -33,7 +33,7 @@ pub struct PlayOptions {
     pub shuffle: bool,
     /// Play only favorites.
     pub favorites_only: bool,
-    /// Start in the compact layout instead of picking one from the terminal size.
+    /// Start with the episode list hidden instead of picking a layout from the terminal size.
     pub compact: bool,
 }
 
@@ -162,9 +162,10 @@ impl<'a> Session<'a> {
                 self.start_download(app, now);
                 Flow::Continue
             }
-            UiCommand::ToggleLayout => {
-                if !app.toggle_layout() {
-                    app.set_status("Terminal demasiado pequeña para la vista completa", now);
+            UiCommand::ToggleList => {
+                match app.toggle_list() {
+                    Some(message) => app.set_status(message, now),
+                    None => app.set_status("Terminal too small for the list", now),
                 }
                 Flow::Continue
             }

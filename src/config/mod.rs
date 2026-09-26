@@ -57,13 +57,14 @@ pub fn theme_file_in(dir: &Path, name: &str) -> Option<PathBuf> {
 
 /// Path of the user theme `name` (`<themes_dir>/<name>.toml`), or `None` if
 /// the name is not valid or the config directory cannot be resolved.
-#[allow(dead_code)] // used by `mfp theme set` in phase D2
+#[cfg(test)]
 pub fn theme_file(name: &str) -> Option<PathBuf> {
     theme_file_in(&themes_dir().ok()?, name)
 }
 
 /// Sorted names (`.toml` stems) of the user themes found in `dir`. A missing
 /// or unreadable directory yields an empty list; other files are ignored.
+#[cfg(test)]
 pub fn custom_theme_names_in(dir: &Path) -> Vec<String> {
     let mut names: Vec<String> = fs::read_dir(dir)
         .into_iter()
@@ -82,14 +83,6 @@ pub fn custom_theme_names_in(dir: &Path) -> Vec<String> {
     names
 }
 
-/// Sorted names of the user themes in [`themes_dir`].
-#[allow(dead_code)] // used by `mfp theme list` in phase D2
-pub fn custom_theme_names() -> Vec<String> {
-    themes_dir()
-        .map(|dir| custom_theme_names_in(&dir))
-        .unwrap_or_default()
-}
-
 /// Contents of `config.toml`. Every section and field is optional: a partial
 /// or empty file yields the defaults for whatever is missing.
 ///
@@ -106,8 +99,7 @@ pub fn custom_theme_names() -> Vec<String> {
 pub struct Config {
     /// Theme selection.
     pub theme: ThemeConfig,
-    /// Visualizer preferences (read by phase D2).
-    #[allow(dead_code)] // used by D2
+    /// Visualizer preferences (read once when the TUI starts).
     pub visualizer: VisualizerConfig,
 }
 
@@ -124,10 +116,8 @@ pub struct ThemeConfig {
 #[serde(default)]
 pub struct VisualizerConfig {
     /// Visualizer style name (`bars`, `mirror`, ...).
-    #[allow(dead_code)] // used by D2
     pub style: String,
     /// Whether the visualizer starts enabled.
-    #[allow(dead_code)] // used by D2
     pub enabled: bool,
 }
 

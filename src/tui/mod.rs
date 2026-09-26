@@ -123,7 +123,11 @@ fn event_loop(
     let (tx, rx) = mpsc::channel();
     let mut app = App::new(mpris.is_some());
     // Loaded once; a broken config or theme degrades to the default look.
-    app.theme = Theme::resolve(&Config::load().theme.active);
+    let config = Config::load();
+    app.theme = Theme::resolve(&config.theme.active);
+    if let Some(problem) = app.apply_visualizer_config(&config.visualizer) {
+        crate::logging::log(&problem);
+    }
     if options.compact {
         app.layout_pref = LayoutPref::Compact;
     }

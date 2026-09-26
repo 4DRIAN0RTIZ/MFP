@@ -524,8 +524,8 @@ const HELP_FULL: [(&str, &str); 11] = [
     ("m", "mute"),
     ("+/-", "vol"),
     ("d", "download"),
-    ("v", "vista"),
-    ("w", "viz"),
+    ("h", "list"),
+    ("v", "viz"),
     ("q", "quit"),
 ];
 const HELP_MEDIUM: [(&str, &str); 8] = [
@@ -548,8 +548,8 @@ const HELP_SHORT: [(&str, &str); 12] = [
     ("+/-", ""),
     ("i", ""),
     ("d", ""),
+    ("h", ""),
     ("v", ""),
-    ("w", ""),
     ("q", ""),
 ];
 
@@ -564,8 +564,8 @@ const LIST_HELP: [&[(&str, &str)]; 3] = [
         ("s", "shuffle"),
         ("f", "fav"),
         ("d", "download"),
-        ("v", "vista"),
-        ("w", "viz"),
+        ("h", "list"),
+        ("v", "viz"),
         ("q", "quit"),
     ],
     &[
@@ -574,7 +574,7 @@ const LIST_HELP: [&[(&str, &str)]; 3] = [
         ("/", "buscar"),
         ("n", "next"),
         ("p", "pause"),
-        ("v", "vista"),
+        ("h", "list"),
         ("q", "quit"),
     ],
     &[
@@ -583,8 +583,8 @@ const LIST_HELP: [&[(&str, &str)]; 3] = [
         ("/", ""),
         ("n", ""),
         ("p", ""),
+        ("h", ""),
         ("v", ""),
-        ("w", ""),
         ("q", ""),
     ],
 ];
@@ -832,7 +832,7 @@ mod tests {
         assert!(!out.contains(" Status "), "{out}");
         assert!(out.contains("┬") && out.contains("┴"), "{out}");
         assert!(
-            out.contains("Enter play") && out.contains("v vista"),
+            out.contains("Enter play") && out.contains("h list"),
             "{out}"
         );
     }
@@ -929,7 +929,7 @@ mod tests {
     }
 
     #[test]
-    fn narrow_terminals_fall_back_to_compact_and_v_can_force_full() {
+    fn narrow_terminals_fall_back_to_compact_and_h_can_force_full() {
         let mut app = full_app();
         let out = screen(&app, 70, 20);
         assert!(!out.contains("Episodes ("), "{out}");
@@ -967,20 +967,22 @@ mod tests {
         // Compact: long form fits a 100-column terminal (98 inside the
         // border), medium fits 70 (68), short fits the 40-column minimum.
         let long = help_line(&Theme::default(), 98);
-        assert!(long.width() <= 98 && long.to_string().contains("w viz"));
+        assert!(long.width() <= 98 && long.to_string().contains("v viz"));
+        assert!(long.to_string().contains("h list"));
         assert!(long.to_string().contains("d download"));
         let medium = help_line(&Theme::default(), 68);
         assert!(medium.width() <= 68 && !medium.to_string().contains("viz"));
         let short = help_line(&Theme::default(), 38);
-        assert!(short.width() <= 38 && short.to_string().contains(" w "));
+        assert!(short.width() <= 38 && short.to_string().contains(" h v "));
         // Full view: long form fits 110 columns (108 inside the border), the
         // short one fits the 64-column minimum (62).
         let long = help_line_for(&Theme::default(), &LIST_HELP, 108);
-        assert!(long.width() <= 108 && long.to_string().contains("w viz"));
+        assert!(long.width() <= 108 && long.to_string().contains("v viz"));
+        assert!(long.to_string().contains("h list"));
         assert!(help_line_for(&Theme::default(), &LIST_HELP, 62).width() <= 62);
         assert!(help_line_for(&Theme::default(), &LIST_HELP, 22)
             .to_string()
-            .contains(" w "));
+            .contains(" h v "));
     }
 
     #[test]

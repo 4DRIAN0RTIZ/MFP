@@ -16,8 +16,8 @@ pub enum UiCommand {
     Info,
     /// Download the current episode for offline listening.
     Download,
-    /// Switch between the compact and full layouts.
-    ToggleLayout,
+    /// Hide or show the episode list (compact and full layouts).
+    ToggleList,
     /// Next visualizer style (turns the visualizer on if it was off).
     VizNext,
     /// Turn the visualizer on or off.
@@ -96,9 +96,9 @@ fn map_list_char(c: char) -> Option<UiCommand> {
         'g' => UiCommand::Move(ListMove::Home),
         'G' => UiCommand::Move(ListMove::End),
         '/' => UiCommand::StartSearch,
-        'v' => UiCommand::ToggleLayout,
-        'w' => UiCommand::VizNext,
-        'W' => UiCommand::VizToggle,
+        'h' => UiCommand::ToggleList,
+        'v' => UiCommand::VizNext,
+        'V' => UiCommand::VizToggle,
         'n' => UiCommand::Playback(Action::Next),
         'b' => UiCommand::Playback(Action::Previous),
         'p' => UiCommand::Playback(Action::PlayPause),
@@ -145,14 +145,18 @@ mod tests {
             ('-', UiCommand::Playback(Action::VolumeDown)),
             ('i', UiCommand::Info),
             ('d', UiCommand::Download),
-            ('w', UiCommand::VizNext),
-            ('W', UiCommand::VizToggle),
+            ('h', UiCommand::ToggleList),
+            ('v', UiCommand::VizNext),
+            ('V', UiCommand::VizToggle),
             ('q', UiCommand::Playback(Action::Quit)),
         ];
         for (c, cmd) in expected {
             assert_eq!(map_key(press(c), InputMode::List), Some(cmd), "key {c}");
         }
         assert_eq!(map_key(press('x'), InputMode::List), None);
+        // `w`/`W` are no longer bound.
+        assert_eq!(map_key(press('w'), InputMode::List), None);
+        assert_eq!(map_key(press('W'), InputMode::List), None);
         assert_eq!(
             map_key(
                 key(KeyCode::Tab, KeyModifiers::NONE, KeyEventKind::Press),
@@ -234,15 +238,16 @@ mod tests {
         assert_eq!(m(KeyCode::Char('G')), Some(UiCommand::Move(ListMove::End)));
         assert_eq!(m(KeyCode::Enter), Some(UiCommand::PlaySelected));
         assert_eq!(m(KeyCode::Char('/')), Some(UiCommand::StartSearch));
-        assert_eq!(m(KeyCode::Char('v')), Some(UiCommand::ToggleLayout));
+        assert_eq!(m(KeyCode::Char('h')), Some(UiCommand::ToggleList));
+        assert_eq!(m(KeyCode::Char('v')), Some(UiCommand::VizNext));
         assert_eq!(m(KeyCode::Esc), None);
     }
 
     #[test]
     fn search_mode_sends_letters_to_the_input_never_to_playback() {
         for c in [
-            'n', 'b', 'p', 's', 'f', 'm', 'i', 'd', 'q', 'v', 'j', 'k', 'g', 'G', '/', '+', '-',
-            'w', 'W',
+            'n', 'b', 'p', 's', 'f', 'm', 'i', 'd', 'q', 'h', 'v', 'V', 'j', 'k', 'g', 'G', '/',
+            '+', '-', 'w', 'W',
         ] {
             assert_eq!(
                 map_key(press(c), InputMode::Search),
@@ -258,23 +263,27 @@ mod tests {
     }
 
     #[test]
-    fn shift_w_toggles_the_visualizer_and_is_text_while_searching() {
-        let shift_w = key(KeyCode::Char('W'), KeyModifiers::SHIFT, KeyEventKind::Press);
+    fn shift_v_toggles_the_visualizer_and_is_text_while_searching() {
+        let shift_v = key(KeyCode::Char('V'), KeyModifiers::SHIFT, KeyEventKind::Press);
         assert_eq!(
-            map_key(shift_w, InputMode::List),
+            map_key(shift_v, InputMode::List),
             Some(UiCommand::VizToggle)
         );
         assert_eq!(
-            map_key(shift_w, InputMode::Search),
-            Some(UiCommand::SearchInput('W'))
+            map_key(shift_v, InputMode::Search),
+            Some(UiCommand::SearchInput('V'))
         );
         assert_eq!(
-            map_key(press('w'), InputMode::List),
+            map_key(press('v'), InputMode::List),
             Some(UiCommand::VizNext)
         );
         assert_eq!(
-            map_key(press('w'), InputMode::Search),
-            Some(UiCommand::SearchInput('w'))
+            map_key(press('v'), InputMode::Search),
+            Some(UiCommand::SearchInput('v'))
+        );
+        assert_eq!(
+            map_key(press('h'), InputMode::Search),
+            Some(UiCommand::SearchInput('h'))
         );
     }
 

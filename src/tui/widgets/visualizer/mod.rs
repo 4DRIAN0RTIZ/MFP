@@ -128,7 +128,6 @@ impl VisualStyle {
     }
 
     /// Parses a style name, ignoring case and surrounding whitespace.
-    #[allow(dead_code)] // used by the config file in phase D
     pub fn from_name(name: &str) -> Option<Self> {
         let name = name.trim();
         Self::ALL

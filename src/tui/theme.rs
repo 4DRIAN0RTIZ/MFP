@@ -20,7 +20,7 @@ use serde::Deserialize;
 use crate::config;
 
 /// Built-in preset names, in display order.
-#[allow(dead_code)] // listed by `mfp theme list` in phase D2
+#[cfg(test)]
 pub const THEME_NAMES: [&str; 6] = [
     "default",
     "solarized",
@@ -331,7 +331,7 @@ impl Theme {
         }
     }
 
-    /// Built-in preset by name (one of [`THEME_NAMES`]).
+    /// Built-in preset by name (one of the built-in names).
     pub fn preset(name: &str) -> Option<Self> {
         Some(match name {
             "default" => Self::default_preset(),
