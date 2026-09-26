@@ -1,4 +1,6 @@
-//! Small pure formatting helpers used by the views.
+//! Small pure formatting helpers used by the views, plus the visualizer widgets.
+
+pub mod visualizer;
 
 use ratatui::text::Span;
 
