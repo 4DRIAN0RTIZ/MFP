@@ -7,6 +7,7 @@ use crate::operations::downloads::DownloadEvent;
 use crate::player::PlayerStage;
 
 use super::list::{filter_indices, move_selection, scroll_offset, ListMove};
+use super::widgets::visualizer::{VisualStyle, VisualizerData};
 
 /// How long a transient status message stays visible.
 const STATUS_TTL: Duration = Duration::from_secs(4);
@@ -138,6 +139,14 @@ pub struct App {
     /// Terminal size seen by the last draw.
     viewport: (u16, u16),
     status: Option<(String, StatusKind, Instant)>,
+    /// Whether the audio visualizer is switched on (`W` toggles it).
+    pub viz_enabled: bool,
+    /// Current visualizer style (`w` rotates it).
+    pub viz_style: VisualStyle,
+    /// Latest visualizer frame, refreshed by the event loop before each draw.
+    pub viz_data: VisualizerData,
+    /// Size of the visualizer area drawn last frame; `(0, 0)` when none.
+    viz_size: (u16, u16),
 }
 
 impl App {
@@ -165,6 +174,53 @@ impl App {
             list_page: DEFAULT_PAGE,
             viewport: (0, 0),
             status: None,
+            viz_enabled: true,
+            viz_style: VisualStyle::default(),
+            viz_data: VisualizerData::default(),
+            viz_size: (0, 0),
+        }
+    }
+
+    /// Records the visualizer area of the frame being drawn (`(0, 0)` when
+    /// the layout leaves no room for it).
+    pub fn set_viz_size(&mut self, width: u16, height: u16) {
+        self.viz_size = (width, height);
+    }
+
+    /// Width and height of the visualizer area drawn last frame.
+    pub fn viz_size(&self) -> (u16, u16) {
+        self.viz_size
+    }
+
+    /// Whether the visualizer is on and had room on screen last frame.
+    pub fn viz_visible(&self) -> bool {
+        self.viz_enabled && self.viz_size.0 > 0 && self.viz_size.1 > 0
+    }
+
+    /// Whether audio is actually flowing (an episode is playing, not paused
+    /// and no start-up stage pending).
+    pub fn is_playing(&self) -> bool {
+        self.episode.is_some() && !self.paused && self.activity == Activity::Idle
+    }
+
+    /// `w`: switches the visualizer on if it was off, otherwise moves to the
+    /// next style. Returns the status message to show.
+    pub fn viz_next(&mut self) -> String {
+        if self.viz_enabled {
+            self.viz_style = self.viz_style.next();
+        } else {
+            self.viz_enabled = true;
+        }
+        format!("Visualizer: {}", self.viz_style.name())
+    }
+
+    /// `W`: toggles the visualizer on or off. Returns the status message.
+    pub fn viz_toggle(&mut self) -> String {
+        self.viz_enabled = !self.viz_enabled;
+        if self.viz_enabled {
+            format!("Visualizer: {}", self.viz_style.name())
+        } else {
+            "Visualizer: off".to_string()
         }
     }
 
@@ -450,6 +506,62 @@ mod tests {
             app.status_line(later).map(|s| s.0).as_deref(),
             Some("Progress: 10.0%")
         );
+    }
+
+    #[test]
+    fn viz_defaults_and_style_rotation() {
+        let mut app = App::new(false);
+        assert!(app.viz_enabled);
+        assert_eq!(app.viz_style, VisualStyle::Bars);
+        let names: Vec<String> = (0..6).map(|_| app.viz_next()).collect();
+        assert_eq!(
+            names,
+            [
+                "Visualizer: mirror",
+                "Visualizer: wave",
+                "Visualizer: dots",
+                "Visualizer: area",
+                "Visualizer: vu",
+                "Visualizer: bars"
+            ]
+        );
+    }
+
+    #[test]
+    fn viz_toggle_and_next_when_off() {
+        let mut app = App::new(false);
+        assert_eq!(app.viz_toggle(), "Visualizer: off");
+        assert!(!app.viz_enabled);
+        // `w` while off switches it back on keeping the style.
+        assert_eq!(app.viz_next(), "Visualizer: bars");
+        assert!(app.viz_enabled);
+        assert_eq!(app.viz_toggle(), "Visualizer: off");
+        assert_eq!(app.viz_toggle(), "Visualizer: bars");
+    }
+
+    #[test]
+    fn viz_visible_needs_enabled_and_room() {
+        let mut app = App::new(false);
+        assert!(!app.viz_visible());
+        app.set_viz_size(40, 5);
+        assert!(app.viz_visible());
+        app.viz_enabled = false;
+        assert!(!app.viz_visible());
+        app.viz_enabled = true;
+        app.set_viz_size(40, 0);
+        assert!(!app.viz_visible());
+    }
+
+    #[test]
+    fn is_playing_needs_episode_idle_and_not_paused() {
+        let mut app = App::new(false);
+        assert!(!app.is_playing());
+        app.begin_episode(episode(), false, false);
+        assert!(!app.is_playing(), "still connecting");
+        app.apply_stage(PlayerStage::Ready);
+        assert!(app.is_playing());
+        app.paused = true;
+        assert!(!app.is_playing());
     }
 
     #[test]

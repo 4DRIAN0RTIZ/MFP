@@ -26,11 +26,6 @@
 //! slightly older window, e.g. `snapshot_delayed(fft_size, delay)` with
 //! `delay` of roughly 50-100 ms worth of samples ([`SUGGESTED_DELAY_MS`]).
 //! It is deliberately not tuned yet.
-//!
-//! The tap is not consumed by the UI yet, hence the `dead_code` allow.
-
-// Used by phase C (TUI integration) of feature #9.
-#![allow(dead_code)]
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -183,6 +178,7 @@ impl TapHandle {
 
     /// Copy of the newest `n` mono samples, oldest first, zero-padded at
     /// the front when fewer are available.
+    #[cfg(test)]
     pub fn snapshot_latest(&self, n: usize) -> Vec<f32> {
         self.snapshot_delayed(n, 0)
     }
@@ -234,6 +230,7 @@ impl TapHandle {
     }
 
     /// Channel count of the tapped source (0 when nothing was tapped yet).
+    #[cfg(test)]
     pub fn channels(&self) -> u16 {
         self.0.lock().map(|s| s.channels).unwrap_or(0)
     }

@@ -16,11 +16,6 @@
 //!
 //! Everything here is plain arithmetic on slices so it can be unit tested
 //! with synthesized signals; the caller owns threading and timing.
-//!
-//! The visualizer is not wired into the UI yet, hence the `dead_code` allow.
-
-// Used by phase C (TUI integration) of feature #9.
-#![allow(dead_code)]
 
 /// Default FFT size.
 ///
@@ -108,6 +103,7 @@ impl Fft {
     }
 
     /// Transform size.
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.n
     }
@@ -297,6 +293,7 @@ impl SpectrumAnalyzer {
     }
 
     /// FFT size in use (after rounding).
+    #[cfg(test)]
     pub fn fft_size(&self) -> usize {
         self.cfg.fft_size
     }
@@ -325,6 +322,7 @@ impl SpectrumAnalyzer {
     }
 
     /// Band edges in Hz (`band_count() + 1` values, or empty).
+    #[cfg(test)]
     pub fn edges(&self) -> &[f32] {
         &self.edges
     }
@@ -340,11 +338,13 @@ impl SpectrumAnalyzer {
     }
 
     /// RMS of the last analyzed window (linear, 0.0..=1.0 for full scale).
+    #[cfg(test)]
     pub fn rms(&self) -> f32 {
         self.rms
     }
 
     /// Absolute peak of the last analyzed window.
+    #[cfg(test)]
     pub fn peak_level(&self) -> f32 {
         self.peak_level
     }

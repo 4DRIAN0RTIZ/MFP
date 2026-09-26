@@ -9,9 +9,6 @@
 //! - only single-width characters are used and no background color is set;
 //!   the look comes from the theme accent plus bold/dim modifiers.
 
-// Wired into the running TUI in phase C.
-#![allow(dead_code)] // used by phase C
-
 mod bars;
 mod vu;
 mod wave;
@@ -110,6 +107,7 @@ impl VisualStyle {
     }
 
     /// Previous style, wrapping around.
+    #[cfg(test)]
     pub fn prev(self) -> Self {
         Self::ALL[(self.index() + Self::ALL.len() - 1) % Self::ALL.len()]
     }
@@ -127,6 +125,7 @@ impl VisualStyle {
     }
 
     /// Parses a style name, ignoring case and surrounding whitespace.
+    #[allow(dead_code)] // used by the config file in phase D
     pub fn from_name(name: &str) -> Option<Self> {
         let name = name.trim();
         Self::ALL

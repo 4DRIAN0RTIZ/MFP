@@ -1,5 +1,5 @@
 //! Rendering of the compact player view and the full view (episode list,
-//! player and status panels).
+//! player info, audio visualizer and a one-line status strip).
 
 use std::time::Instant;
 
@@ -13,6 +13,7 @@ use ratatui::{
 
 use super::app::{Activity, App, InputMode, LayoutMode, StatusKind};
 use super::theme;
+use super::widgets::visualizer::Visualizer;
 use super::widgets::{
     display_width, progress_bar, time_label, truncate_to_width, volume_bar, volume_percent,
 };
@@ -21,6 +22,20 @@ use super::widgets::{
 pub const MIN_WIDTH: u16 = 40;
 /// Smallest terminal height the compact view supports.
 pub const MIN_HEIGHT: u16 = 9;
+
+/// Smallest terminal height where the compact view spends its spare rows on
+/// the visualizer; shorter terminals keep the plain compact sketch.
+pub const COMPACT_VIZ_MIN_HEIGHT: u16 = 13;
+/// Fewest rows the visualizer needs to be worth drawing.
+const VIZ_MIN_ROWS: u16 = 2;
+/// Free rows in the right pane from which one blank row is kept between the
+/// player info and the visualizer.
+const VIZ_SPACER_MIN_ROWS: u16 = 4;
+/// Room a download text needs on the status strip before it is shown next to
+/// a message.
+const STRIP_DOWNLOAD_MIN_COLS: usize = 12;
+/// Narrowest gauge worth drawing on the status strip.
+const STRIP_GAUGE_MIN_COLS: usize = 6;
 
 /// Columns before the episode title / progress bar (`"  ♪  "`).
 const ICON_COLS: usize = 5;
@@ -43,6 +58,7 @@ pub fn is_too_small(area: Rect) -> bool {
 pub fn draw(frame: &mut Frame, app: &mut App, now: Instant) {
     let area = frame.area();
     app.set_viewport(area.width, area.height);
+    app.set_viz_size(0, 0);
     if is_too_small(area) {
         let msg = format!("Terminal too small (min {}x{})", MIN_WIDTH, MIN_HEIGHT);
         frame.render_widget(
@@ -218,69 +234,120 @@ fn episode_row(app: &App, episode: usize, width: usize, selected: bool) -> Line<
     line
 }
 
-/// Right side of the full view: player info and the bordered status panel.
-fn draw_side(frame: &mut Frame, area: Rect, app: &App, now: Instant) {
+/// Areas of the right pane of the full view, top to bottom.
+struct SideLayout {
+    /// Title, duration, blank, progress and volume rows.
+    info: [Rect; 5],
+    /// Visualizer area; empty when the pane is too short for it.
+    viz: Rect,
+    /// One-line strip for messages and download progress.
+    status: Rect,
+}
+
+/// Splits the right pane: fixed info rows on top, a one-line status strip at
+/// the bottom, and everything left in between for the visualizer.
+fn side_layout(area: Rect) -> SideLayout {
     let rows = Layout::vertical([
         Constraint::Length(1), // title
         Constraint::Length(1), // duration
         Constraint::Length(1), // blank
         Constraint::Length(1), // progress
         Constraint::Length(1), // volume / shuffle / mpris
-        Constraint::Min(0),    // status panel
+        Constraint::Min(0),    // visualizer
+        Constraint::Length(1), // status strip
     ])
     .split(area);
-    let width = area.width as usize;
-    frame.render_widget(Paragraph::new(title_line(app, width)), rows[0]);
-    frame.render_widget(Paragraph::new(duration_line(app)), rows[1]);
-    frame.render_widget(Paragraph::new(progress_line(app, width)), rows[3]);
-    frame.render_widget(Paragraph::new(volume_line(app, width)), rows[4]);
+    let rest = rows[5];
+    let spacer = u16::from(rest.height >= VIZ_SPACER_MIN_ROWS);
+    let viz = Rect {
+        y: rest.y.saturating_add(spacer),
+        height: rest.height.saturating_sub(spacer),
+        ..rest
+    };
+    SideLayout {
+        info: [rows[0], rows[1], rows[2], rows[3], rows[4]],
+        viz: if viz.height >= VIZ_MIN_ROWS && viz.width > 0 {
+            viz
+        } else {
+            Rect::default()
+        },
+        status: rows[6],
+    }
+}
 
-    let panel = rows[5];
-    if panel.height < 3 || panel.width < 4 {
+/// Right side of the full view: player info, visualizer and status strip.
+fn draw_side(frame: &mut Frame, area: Rect, app: &mut App, now: Instant) {
+    let layout = side_layout(area);
+    let width = area.width as usize;
+    frame.render_widget(Paragraph::new(title_line(app, width)), layout.info[0]);
+    frame.render_widget(Paragraph::new(duration_line(app)), layout.info[1]);
+    frame.render_widget(Paragraph::new(progress_line(app, width)), layout.info[3]);
+    frame.render_widget(Paragraph::new(volume_line(app, width)), layout.info[4]);
+    draw_visualizer(frame, layout.viz, app);
+    frame.render_widget(Paragraph::new(strip_line(app, now, width)), layout.status);
+}
+
+/// Draws the visualizer into `area` (when on and non-empty) and reports its
+/// size so the event loop can size the analysis.
+fn draw_visualizer(frame: &mut Frame, area: Rect, app: &mut App) {
+    if !app.viz_enabled || area.width == 0 || area.height == 0 {
         return;
     }
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(theme::border())
-        .title(Span::styled(" Status ", theme::dim()));
-    let inner = block.inner(panel);
-    frame.render_widget(block, panel);
+    app.set_viz_size(area.width, area.height);
     frame.render_widget(
-        Paragraph::new(status_panel_lines(app, now, inner.width as usize)),
-        inner,
+        Visualizer {
+            style: app.viz_style,
+            data: &app.viz_data,
+        },
+        area,
     );
 }
 
-/// Lines of the status panel: message or activity, download text, download bar.
-fn status_panel_lines(app: &App, now: Instant, width: usize) -> Vec<Line<'static>> {
-    let mut lines = Vec::new();
+/// The one-line status strip: transient message or activity, then the
+/// download text and, if there is room, a compact gauge.
+fn strip_line(app: &App, now: Instant, width: usize) -> Line<'static> {
+    let mut spans: Vec<Span<'static>> = Vec::new();
+    let mut used = 0;
     if let Some((text, kind)) = app.message_line(now) {
+        let limit = if app.download.is_some() {
+            width
+                .saturating_sub(STRIP_DOWNLOAD_MIN_COLS + 2)
+                .max(width / 2)
+        } else {
+            width
+        };
+        let text = truncate_to_width(&text, limit);
+        used = display_width(&text);
         let style = match kind {
             StatusKind::Info => ratatui::style::Style::default(),
             StatusKind::Error => theme::error(),
         };
-        lines.push(Line::from(Span::styled(
-            format!(" {}", truncate_to_width(&text, width.saturating_sub(2))),
-            style,
-        )));
+        spans.push(Span::styled(text, style));
     }
-    if let Some(text) = &app.download {
-        lines.push(Line::from(Span::raw(format!(
-            " {}",
-            truncate_to_width(text, width.saturating_sub(2))
-        ))));
-        if let Some((done, total)) = app.download_bytes {
-            let bar = progress_bar(done, total, width.saturating_sub(2));
-            lines.push(Line::from(Span::styled(
-                format!(" {}", bar),
-                theme::accent(),
-            )));
+    if let Some(download) = &app.download {
+        let sep = if used > 0 { 2 } else { 0 };
+        let room = width.saturating_sub(used + sep);
+        if room >= STRIP_DOWNLOAD_MIN_COLS || used == 0 {
+            let text = truncate_to_width(download, room);
+            used += sep + display_width(&text);
+            spans.push(Span::raw(" ".repeat(sep)));
+            spans.push(Span::raw(text));
+            if let Some((done, total)) = app.download_bytes {
+                let gauge = width.saturating_sub(used + 1);
+                if gauge >= STRIP_GAUGE_MIN_COLS {
+                    spans.push(Span::raw(" "));
+                    spans.push(Span::styled(
+                        progress_bar(done, total, gauge),
+                        theme::accent(),
+                    ));
+                }
+            }
         }
     }
-    lines
+    Line::from(spans)
 }
 
-fn draw_compact(frame: &mut Frame, area: Rect, app: &App, now: Instant) {
+fn draw_compact(frame: &mut Frame, area: Rect, app: &mut App, now: Instant) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(theme::border())
@@ -288,15 +355,27 @@ fn draw_compact(frame: &mut Frame, area: Rect, app: &App, now: Instant) {
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
+    // Spare rows go to the visualizer on tall terminals; otherwise they stay
+    // blank at the bottom, as in the plain compact sketch.
+    let tall = area.height >= COMPACT_VIZ_MIN_HEIGHT;
     let rows = Layout::vertical([
         Constraint::Length(1), // title
         Constraint::Length(1), // duration
         Constraint::Length(1), // progress
         Constraint::Length(1), // volume / shuffle / mpris
         Constraint::Length(1), // status
+        if tall {
+            Constraint::Min(0) // visualizer
+        } else {
+            Constraint::Length(0)
+        },
         Constraint::Length(1), // separator
         Constraint::Length(1), // help
-        Constraint::Min(0),
+        if tall {
+            Constraint::Length(0)
+        } else {
+            Constraint::Min(0)
+        },
     ])
     .split(inner);
     let width = inner.width as usize;
@@ -306,8 +385,11 @@ fn draw_compact(frame: &mut Frame, area: Rect, app: &App, now: Instant) {
     frame.render_widget(Paragraph::new(progress_line(app, width)), rows[2]);
     frame.render_widget(Paragraph::new(volume_line(app, width)), rows[3]);
     frame.render_widget(Paragraph::new(status_line(app, now, width)), rows[4]);
-    draw_separator(frame, area, rows[5].y, None);
-    frame.render_widget(Paragraph::new(help_line(width)), rows[6]);
+    if tall && rows[5].height >= VIZ_MIN_ROWS {
+        draw_visualizer(frame, inset(rows[5]), app);
+    }
+    draw_separator(frame, area, rows[6].y, None);
+    frame.render_widget(Paragraph::new(help_line(width)), rows[7]);
 }
 
 /// Draws `├───┤` across the full outer width at row `y`, with a `┴` junction
@@ -420,9 +502,9 @@ const HELP_FULL: [(&str, &str); 11] = [
     ("f", "fav"),
     ("m", "mute"),
     ("+/-", "vol"),
-    ("i", "info"),
     ("d", "download"),
     ("v", "vista"),
+    ("w", "viz"),
     ("q", "quit"),
 ];
 const HELP_MEDIUM: [(&str, &str); 8] = [
@@ -435,7 +517,7 @@ const HELP_MEDIUM: [(&str, &str); 8] = [
     ("+/-", "vol"),
     ("q", "quit"),
 ];
-const HELP_SHORT: [(&str, &str); 11] = [
+const HELP_SHORT: [(&str, &str); 12] = [
     ("n", ""),
     ("b", ""),
     ("p", ""),
@@ -446,6 +528,7 @@ const HELP_SHORT: [(&str, &str); 11] = [
     ("i", ""),
     ("d", ""),
     ("v", ""),
+    ("w", ""),
     ("q", ""),
 ];
 
@@ -456,12 +539,12 @@ const LIST_HELP: [&[(&str, &str)]; 3] = [
         ("Enter", "play"),
         ("/", "buscar"),
         ("n", "next"),
-        ("b", "back"),
         ("p", "pause"),
         ("s", "shuffle"),
         ("f", "fav"),
         ("d", "download"),
         ("v", "vista"),
+        ("w", "viz"),
         ("q", "quit"),
     ],
     &[
@@ -480,6 +563,7 @@ const LIST_HELP: [&[(&str, &str)]; 3] = [
         ("n", ""),
         ("p", ""),
         ("v", ""),
+        ("w", ""),
         ("q", ""),
     ],
 ];
@@ -705,7 +789,7 @@ mod tests {
         assert!(out.contains("Duración 01:32:53"), "{out}");
         assert!(out.contains("00:51"), "{out}");
         assert!(out.contains("Shuffle OFF"), "{out}");
-        assert!(out.contains(" Status "), "{out}");
+        assert!(!out.contains(" Status "), "{out}");
         assert!(out.contains("┬") && out.contains("┴"), "{out}");
         assert!(
             out.contains("Enter play") && out.contains("v vista"),
@@ -839,6 +923,25 @@ mod tests {
     }
 
     #[test]
+    fn help_variants_stay_within_their_width_budgets() {
+        // Compact: long form fits a 100-column terminal (98 inside the
+        // border), medium fits 70 (68), short fits the 40-column minimum.
+        let long = help_line(98);
+        assert!(long.width() <= 98 && long.to_string().contains("w viz"));
+        assert!(long.to_string().contains("d download"));
+        let medium = help_line(68);
+        assert!(medium.width() <= 68 && !medium.to_string().contains("viz"));
+        let short = help_line(38);
+        assert!(short.width() <= 38 && short.to_string().contains(" w "));
+        // Full view: long form fits 110 columns (108 inside the border), the
+        // short one fits the 64-column minimum (62).
+        let long = help_line_for(&LIST_HELP, 108);
+        assert!(long.width() <= 108 && long.to_string().contains("w viz"));
+        assert!(help_line_for(&LIST_HELP, 62).width() <= 62);
+        assert!(help_line_for(&LIST_HELP, 22).to_string().contains(" w "));
+    }
+
+    #[test]
     fn full_help_line_adapts_to_width() {
         assert!(help_line_for(&LIST_HELP, 110)
             .to_string()
@@ -849,5 +952,218 @@ mod tests {
         assert!(help_line_for(&SEARCH_HELP, 70)
             .to_string()
             .contains("Esc cancelar"));
+    }
+
+    fn loud() -> crate::tui::widgets::visualizer::VisualizerData {
+        crate::tui::widgets::visualizer::VisualizerData {
+            bands: vec![1.0; 64],
+            peaks: vec![1.0; 64],
+            waveform: (0..512).map(|i| (i as f32 / 10.0).sin()).collect(),
+            level_l: 0.8,
+            level_r: 0.8,
+            hold_l: 0.9,
+            hold_r: 0.9,
+        }
+    }
+
+    /// Draws once and returns the screen lines plus the size the visualizer
+    /// reported.
+    fn render_viz(app: &App, w: u16, h: u16) -> (Vec<String>, (u16, u16)) {
+        let mut app = app.clone();
+        app.viz_data = loud();
+        let mut terminal = Terminal::new(TestBackend::new(w, h)).expect("terminal");
+        terminal
+            .draw(|f| draw(f, &mut app, Instant::now()))
+            .expect("draw");
+        let buf = terminal.backend().buffer().clone();
+        let lines = (0..h)
+            .map(|y| {
+                (0..w)
+                    .map(|x| buf[(x, y)].symbol().to_string())
+                    .collect::<String>()
+            })
+            .collect();
+        (lines, app.viz_size())
+    }
+
+    fn has_viz_glyph(line: &str) -> bool {
+        line.chars().any(|c| matches!(c, '\u{2581}'..='\u{2588}'))
+    }
+
+    #[test]
+    fn side_layout_gives_the_leftover_rows_to_the_visualizer() {
+        let l = side_layout(Rect::new(10, 2, 60, 20));
+        assert_eq!(l.info[0].y, 2);
+        assert_eq!(l.info[4].y, 6);
+        // 20 - 5 info - 1 strip = 14 free rows; one is a spacer.
+        assert_eq!(l.viz, Rect::new(10, 8, 60, 13));
+        assert_eq!(l.status, Rect::new(10, 21, 60, 1));
+        // Exactly VIZ_MIN_ROWS free rows: no spacer, still drawn.
+        let l = side_layout(Rect::new(0, 0, 60, 8));
+        assert_eq!(l.viz, Rect::new(0, 5, 60, 2));
+        assert_eq!(l.status.y, 7);
+        // Too short: no visualizer, strip still there.
+        let l = side_layout(Rect::new(0, 0, 60, 7));
+        assert_eq!(l.viz, Rect::default());
+        assert_eq!(l.status.height, 1);
+        assert_eq!(side_layout(Rect::new(0, 0, 0, 20)).viz, Rect::default());
+    }
+
+    #[test]
+    fn full_view_draws_the_visualizer_between_info_and_status_strip() {
+        let mut app = full_app();
+        app.set_status("Visualizer: bars", Instant::now());
+        let (lines, size) = render_viz(&app, 110, 30);
+        assert!(size.0 > 20 && size.1 >= 10, "{size:?}");
+        let first = lines
+            .iter()
+            .position(|l| has_viz_glyph(l))
+            .expect("viz rows");
+        let volume = lines
+            .iter()
+            .position(|l| l.contains("MPRIS"))
+            .expect("volume row");
+        assert!(first > volume, "viz below the info block");
+        // Strip: the last row of the body, right above the separator.
+        let sep = lines
+            .iter()
+            .rposition(|l| l.starts_with('├'))
+            .expect("separator");
+        assert!(
+            lines[sep - 1].contains("Visualizer: bars"),
+            "{}",
+            lines[sep - 1]
+        );
+        assert!(!has_viz_glyph(&lines[sep - 1]));
+        // The list panel is not touched by the visualizer.
+        assert!(lines[first].contains('│'));
+        assert!(!lines.join("\n").contains(" Status "));
+    }
+
+    #[test]
+    fn full_view_visualizer_off_reports_no_area_and_draws_nothing() {
+        let mut app = full_app();
+        app.viz_enabled = false;
+        let (lines, size) = render_viz(&app, 110, 30);
+        assert_eq!(size, (0, 0));
+        assert!(!lines.iter().any(|l| has_viz_glyph(l)));
+    }
+
+    #[test]
+    fn strip_shows_message_and_download_progress_on_one_line() {
+        let mut app = full_app();
+        let now = Instant::now();
+        app.set_status("Paused", now);
+        app.apply_download_event(crate::operations::downloads::DownloadEvent::Progress {
+            downloaded: 12 * 1_048_576,
+            total: 84 * 1_048_576,
+        });
+        let line = strip_line(&app, now, 62).to_string();
+        assert!(line.contains("Paused"), "{line}");
+        assert!(line.contains("Progress: 14.3% (12.0/84.0 MB)"), "{line}");
+        assert!(line.contains('━'), "gauge fits at 62 columns: {line}");
+        assert!(display_width(&line) <= 62);
+        // Narrow strip: still one line within its width, download text first.
+        for w in [0usize, 1, 5, 12, 20, 30, 45] {
+            assert!(
+                display_width(&strip_line(&app, now, w).to_string()) <= w,
+                "{w}"
+            );
+        }
+        app.download = None;
+        assert_eq!(strip_line(&app, now, 62).to_string(), "Paused");
+        let idle = strip_line(&full_app(), now, 62).to_string();
+        assert_eq!(idle, "");
+    }
+
+    #[test]
+    fn strip_in_the_full_view_keeps_the_download_visible_with_the_visualizer_on() {
+        let mut app = full_app();
+        let now = Instant::now();
+        app.set_status("Paused", now);
+        app.apply_download_event(crate::operations::downloads::DownloadEvent::Progress {
+            downloaded: 12 * 1_048_576,
+            total: 84 * 1_048_576,
+        });
+        let (lines, _) = render_viz(&app, 110, 30);
+        let strip = lines
+            .iter()
+            .find(|l| l.contains("Progress: 14.3%"))
+            .expect("progress text");
+        assert!(strip.contains("Paused") && strip.contains('━'), "{strip}");
+        assert!(lines.iter().any(|l| has_viz_glyph(l)));
+    }
+
+    #[test]
+    fn compact_view_shows_the_visualizer_only_when_tall_enough() {
+        let app = playing_app();
+        for h in [9u16, 10, 12] {
+            let (lines, size) = render_viz(&app, 100, h);
+            assert!(!lines.iter().any(|l| has_viz_glyph(l)), "h={h}");
+            assert_eq!(size, (0, 0), "h={h}");
+        }
+        // 13 rows: 11 inside the border, 7 fixed, 4 spare.
+        let (lines, size) = render_viz(&app, 100, COMPACT_VIZ_MIN_HEIGHT);
+        assert_eq!(size.1, 4, "{size:?}");
+        assert!(lines.iter().any(|l| has_viz_glyph(l)));
+        let last = lines.len() - 1;
+        assert!(
+            lines[last - 1].contains("n next"),
+            "help stays at the bottom"
+        );
+        assert!(lines[last - 2].starts_with('├'), "separator above the help");
+        let mut pinned = playing_app();
+        pinned.layout_pref = crate::tui::app::LayoutPref::Compact;
+        let (_, size) = render_viz(&pinned, 100, 30);
+        assert_eq!(size.1, 30 - 2 - 7);
+        // Off: rows stay blank.
+        let mut off = pinned.clone();
+        off.viz_enabled = false;
+        let (lines, size) = render_viz(&off, 100, 30);
+        assert_eq!(size, (0, 0));
+        assert!(!lines.iter().any(|l| has_viz_glyph(l)));
+    }
+
+    #[test]
+    fn compact_view_below_the_height_rule_matches_the_old_sketch() {
+        let mut on = playing_app();
+        on.viz_data = loud();
+        let mut off = playing_app();
+        off.viz_enabled = false;
+        for h in [9u16, 12] {
+            assert_eq!(render(&on, 100, h), render(&off, 100, h), "h={h}");
+        }
+    }
+
+    #[test]
+    fn every_style_draws_in_both_layouts_without_panicking() {
+        use crate::tui::widgets::visualizer::VisualStyle;
+        for style in VisualStyle::ALL {
+            for (w, h) in [(110u16, 30u16), (70, 20), (100, 13), (64, 12), (40, 9)] {
+                let mut app = full_app();
+                app.viz_style = style;
+                let (lines, _) = render_viz(&app, w, h);
+                assert_eq!(lines.len(), h as usize);
+            }
+        }
+    }
+
+    #[test]
+    fn visualizer_does_not_panic_on_degenerate_sizes() {
+        for pref in [
+            crate::tui::app::LayoutPref::Auto,
+            crate::tui::app::LayoutPref::Full,
+            crate::tui::app::LayoutPref::Compact,
+        ] {
+            for w in [0u16, 1, 10, 39, 40, 63, 64, 65, 80, 200, 400] {
+                for h in [0u16, 1, 5, 8, 9, 11, 12, 13, 14, 16, 60] {
+                    let mut app = full_app();
+                    app.layout_pref = pref;
+                    app.download = Some("x".into());
+                    app.download_bytes = Some((1, 0));
+                    let _ = render_viz(&app, w, h);
+                }
+            }
+        }
     }
 }

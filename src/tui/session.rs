@@ -168,6 +168,16 @@ impl<'a> Session<'a> {
                 }
                 Flow::Continue
             }
+            UiCommand::VizNext => {
+                let message = app.viz_next();
+                app.set_status(message, now);
+                Flow::Continue
+            }
+            UiCommand::VizToggle => {
+                let message = app.viz_toggle();
+                app.set_status(message, now);
+                Flow::Continue
+            }
             // The list is only on screen in the full layout; ignore its keys
             // otherwise so nothing invisible gets played or edited.
             _ if app.layout() != LayoutMode::Full => Flow::Continue,

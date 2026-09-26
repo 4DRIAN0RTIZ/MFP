@@ -122,7 +122,6 @@ impl Player {
 
     /// Handle to the audio tap (recent mono samples and levels). Cloning it
     /// shares the same buffer; it is cleared on `stop` and on each new track.
-    #[allow(dead_code)] // used by phase C (visualizer)
     pub fn tap(&self) -> TapHandle {
         self.tap.clone()
     }
