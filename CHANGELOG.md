@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased]
+## [0.3.0] - 2026-09-26
 
 ### Build
 
@@ -14,6 +14,7 @@ All notable changes to this project are documented here.
 
 ### Chore
 
+- Update CHANGELOG.md and docs/changelog.json [skip ci] ([8c365cc](https://github.com/4DRIAN0RTIZ/MFP/commit/8c365cca9879f577b4ffcfb1db72c44a8c4f7f9c))
 - Update ([f0246b0](https://github.com/4DRIAN0RTIZ/MFP/commit/f0246b01929c7a71f8b72605939b5e64fb0b68c5))
 
 ### Documentation
