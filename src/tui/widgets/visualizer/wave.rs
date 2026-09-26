@@ -4,7 +4,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
 use super::{put, signed};
-use crate::tui::theme;
+use crate::tui::theme::Theme;
 
 /// Braille dot bit for pixel `(px, py)` inside a 2x4 cell.
 fn dot_bit(px: usize, py: usize) -> u8 {
@@ -58,7 +58,12 @@ fn resample_signed(values: &[f32], n: usize) -> Vec<f32> {
 /// Draws the waveform on a 2x4-dots-per-cell grid, `+1` at the top and `-1`
 /// at the bottom of the area. Consecutive points are joined with Bresenham
 /// segments; silence (or no data) draws a flat line through the center.
-pub(super) fn render_wave(data: &super::VisualizerData, area: Rect, buf: &mut Buffer) {
+pub(super) fn render_wave(
+    data: &super::VisualizerData,
+    theme: &Theme,
+    area: Rect,
+    buf: &mut Buffer,
+) {
     let w = area.width as usize;
     let h = area.height as usize;
     let (pw, ph) = (2 * w, 4 * h);
@@ -110,7 +115,7 @@ pub(super) fn render_wave(data: &super::VisualizerData, area: Rect, buf: &mut Bu
                     area.x + cx as u16,
                     area.y + cy as u16,
                     ch,
-                    theme::accent(),
+                    theme.viz_wave(),
                 );
             }
         }

@@ -5,14 +5,14 @@ use std::time::Instant;
 
 use ratatui::{
     layout::{Constraint, Layout, Rect},
-    style::Modifier,
+    style::Style,
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
 
 use super::app::{Activity, App, InputMode, LayoutMode, StatusKind};
-use super::theme;
+use super::theme::Theme;
 use super::widgets::visualizer::Visualizer;
 use super::widgets::{
     display_width, progress_bar, time_label, truncate_to_width, volume_bar, volume_percent,
@@ -57,13 +57,17 @@ pub fn is_too_small(area: Rect) -> bool {
 /// list height, which selection paging and layout toggling depend on.
 pub fn draw(frame: &mut Frame, app: &mut App, now: Instant) {
     let area = frame.area();
+    let theme = app.theme;
+    if let Some(base) = theme.base_style() {
+        frame.render_widget(Block::default().style(base), area);
+    }
     app.set_viewport(area.width, area.height);
     app.set_viz_size(0, 0);
     if is_too_small(area) {
         let msg = format!("Terminal too small (min {}x{})", MIN_WIDTH, MIN_HEIGHT);
         frame.render_widget(
             Paragraph::new(msg)
-                .style(theme::error())
+                .style(theme.error())
                 .wrap(Wrap { trim: true }),
             area,
         );
@@ -85,10 +89,11 @@ const MARKER_COLS: usize = 2;
 const ROW_STAR_COLS: usize = 2;
 
 fn draw_full(frame: &mut Frame, area: Rect, app: &mut App, now: Instant) {
+    let theme = app.theme;
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(theme::border())
-        .title(Span::styled(" mfp ", theme::title()));
+        .border_style(theme.border())
+        .title(Span::styled(" mfp ", theme.title()));
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -112,19 +117,19 @@ fn draw_full(frame: &mut Frame, area: Rect, app: &mut App, now: Instant) {
     for y in body.y..body.y + body.height {
         frame
             .buffer_mut()
-            .set_string(divider_x, y, "│", theme::border());
+            .set_string(divider_x, y, "│", theme.border());
     }
     frame
         .buffer_mut()
-        .set_string(divider_x, area.y, "┬", theme::border());
-    draw_separator(frame, area, rows[1].y, Some(divider_x));
+        .set_string(divider_x, area.y, "┬", theme.border());
+    draw_separator(frame, &theme, area, rows[1].y, Some(divider_x));
 
     draw_list(frame, inset(cols[0]), app);
     draw_side(frame, inset(cols[2]), app, now);
     let width = inner.width as usize;
     let help = match app.effective_input_mode() {
-        InputMode::List => help_line_for(&LIST_HELP, width),
-        InputMode::Search => help_line_for(&SEARCH_HELP, width),
+        InputMode::List => help_line_for(&theme, &LIST_HELP, width),
+        InputMode::Search => help_line_for(&theme, &SEARCH_HELP, width),
     };
     frame.render_widget(Paragraph::new(help), rows[2]);
 }
@@ -144,6 +149,7 @@ fn draw_list(frame: &mut Frame, area: Rect, app: &mut App) {
     if area.height == 0 || area.width == 0 {
         return;
     }
+    let theme = app.theme;
     let width = area.width as usize;
     let parts = Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).split(area);
     frame.render_widget(Paragraph::new(list_header(app, width)), parts[0]);
@@ -165,10 +171,7 @@ fn draw_list(frame: &mut Frame, area: Rect, app: &mut App) {
         } else {
             "no matches"
         };
-        lines.push(Line::from(Span::styled(
-            format!("  {}", text),
-            theme::dim(),
-        )));
+        lines.push(Line::from(Span::styled(format!("  {}", text), theme.dim())));
     }
     frame.render_widget(Paragraph::new(lines), parts[1]);
 }
@@ -194,33 +197,34 @@ fn list_header(app: &App, width: usize) -> Line<'static> {
     };
     Line::from(Span::styled(
         truncate_to_width(&text, width),
-        theme::primary(),
+        app.theme.primary(),
     ))
 }
 
 /// One list row: playing marker, title, favorite star. The selected row is
-/// drawn reversed (no fixed colors, so it works on dark and light terminals).
+/// drawn with the theme's selection style (reversed video in the default theme).
 fn episode_row(app: &App, episode: usize, width: usize, selected: bool) -> Line<'static> {
     let title = app.episodes.get(episode).map(String::as_str).unwrap_or("");
     let room = width.saturating_sub(MARKER_COLS + ROW_STAR_COLS);
     let shown = truncate_to_width(title, room);
     let pad = room.saturating_sub(display_width(&shown));
+    let theme = app.theme;
     let playing = app.playing == Some(episode);
     let favorite = app.favorites.contains(title);
     let marker = if playing {
-        Span::styled("▶ ", theme::accent())
+        Span::styled("▶ ", theme.playing_marker())
     } else {
         Span::raw("  ")
     };
     let star = if favorite {
-        Span::styled(" ★", theme::favorite())
+        Span::styled(" ★", theme.favorite())
     } else {
         Span::raw("  ")
     };
     let title_style = if playing {
-        theme::primary()
+        theme.primary()
     } else {
-        ratatui::style::Style::default()
+        Style::default()
     };
     let mut line = Line::from(vec![
         marker,
@@ -229,7 +233,7 @@ fn episode_row(app: &App, episode: usize, width: usize, selected: bool) -> Line<
         star,
     ]);
     if selected {
-        line = line.patch_style(ratatui::style::Style::default().add_modifier(Modifier::REVERSED));
+        line = line.patch_style(theme.selection());
     }
     line
 }
@@ -298,6 +302,7 @@ fn draw_visualizer(frame: &mut Frame, area: Rect, app: &mut App) {
         Visualizer {
             style: app.viz_style,
             data: &app.viz_data,
+            theme: &app.theme,
         },
         area,
     );
@@ -306,6 +311,7 @@ fn draw_visualizer(frame: &mut Frame, area: Rect, app: &mut App) {
 /// The one-line status strip: transient message or activity, then the
 /// download text and, if there is room, a compact gauge.
 fn strip_line(app: &App, now: Instant, width: usize) -> Line<'static> {
+    let theme = app.theme;
     let mut spans: Vec<Span<'static>> = Vec::new();
     let mut used = 0;
     if let Some((text, kind)) = app.message_line(now) {
@@ -319,8 +325,8 @@ fn strip_line(app: &App, now: Instant, width: usize) -> Line<'static> {
         let text = truncate_to_width(&text, limit);
         used = display_width(&text);
         let style = match kind {
-            StatusKind::Info => ratatui::style::Style::default(),
-            StatusKind::Error => theme::error(),
+            StatusKind::Info => theme.status(),
+            StatusKind::Error => theme.error(),
         };
         spans.push(Span::styled(text, style));
     }
@@ -336,9 +342,10 @@ fn strip_line(app: &App, now: Instant, width: usize) -> Line<'static> {
                 let gauge = width.saturating_sub(used + 1);
                 if gauge >= STRIP_GAUGE_MIN_COLS {
                     spans.push(Span::raw(" "));
-                    spans.push(Span::styled(
+                    spans.extend(bar_spans(
                         progress_bar(done, total, gauge),
-                        theme::accent(),
+                        theme.progress_filled(),
+                        theme.progress_empty(),
                     ));
                 }
             }
@@ -348,10 +355,11 @@ fn strip_line(app: &App, now: Instant, width: usize) -> Line<'static> {
 }
 
 fn draw_compact(frame: &mut Frame, area: Rect, app: &mut App, now: Instant) {
+    let theme = app.theme;
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(theme::border())
-        .title(Span::styled(" mfp ", theme::title()));
+        .border_style(theme.border())
+        .title(Span::styled(" mfp ", theme.title()));
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -388,23 +396,24 @@ fn draw_compact(frame: &mut Frame, area: Rect, app: &mut App, now: Instant) {
     if tall && rows[5].height >= VIZ_MIN_ROWS {
         draw_visualizer(frame, inset(rows[5]), app);
     }
-    draw_separator(frame, area, rows[6].y, None);
-    frame.render_widget(Paragraph::new(help_line(width)), rows[7]);
+    draw_separator(frame, &theme, area, rows[6].y, None);
+    frame.render_widget(Paragraph::new(help_line(&theme, width)), rows[7]);
 }
 
 /// Draws `├───┤` across the full outer width at row `y`, with a `┴` junction
 /// at column `junction_x` when a vertical divider ends there.
-fn draw_separator(frame: &mut Frame, outer: Rect, y: u16, junction_x: Option<u16>) {
+fn draw_separator(frame: &mut Frame, theme: &Theme, outer: Rect, y: u16, junction_x: Option<u16>) {
     let line = format!("├{}┤", "─".repeat(outer.width.saturating_sub(2) as usize));
     frame
         .buffer_mut()
-        .set_string(outer.x, y, line, theme::border());
+        .set_string(outer.x, y, line, theme.border());
     if let Some(x) = junction_x {
-        frame.buffer_mut().set_string(x, y, "┴", theme::border());
+        frame.buffer_mut().set_string(x, y, "┴", theme.border());
     }
 }
 
 fn title_line(app: &App, width: usize) -> Line<'static> {
+    let theme = app.theme;
     let title = app
         .episode
         .as_ref()
@@ -413,19 +422,20 @@ fn title_line(app: &App, width: usize) -> Line<'static> {
     let title = truncate_to_width(title, width.saturating_sub(ICON_COLS + STAR_COLS + 1));
     let pad = width.saturating_sub(ICON_COLS + display_width(&title) + STAR_COLS);
     let star = if app.favorite {
-        Span::styled("★", theme::favorite())
+        Span::styled("★", theme.favorite())
     } else {
         Span::raw(" ")
     };
     Line::from(vec![
-        Span::styled("  ♪  ", theme::accent()),
-        Span::styled(title, theme::primary()),
+        Span::styled("  ♪  ", theme.accent()),
+        Span::styled(title, theme.primary()),
         Span::raw(" ".repeat(pad)),
         star,
     ])
 }
 
 fn duration_line(app: &App) -> Line<'static> {
+    let theme = app.theme;
     let duration = app
         .episode
         .as_ref()
@@ -433,11 +443,12 @@ fn duration_line(app: &App) -> Line<'static> {
         .unwrap_or("-");
     Line::from(Span::styled(
         format!("     Duración {}", duration),
-        theme::dim(),
+        theme.dim(),
     ))
 }
 
 fn progress_line(app: &App, width: usize) -> Line<'static> {
+    let theme = app.theme;
     let total = app.episode.as_ref().map(|e| e.total_seconds).unwrap_or(0);
     let elapsed = time_label(app.elapsed);
     let total_label = time_label(total);
@@ -445,44 +456,54 @@ fn progress_line(app: &App, width: usize) -> Line<'static> {
     // icon cols + elapsed + space + bar + gap + total + right margin
     let fixed = ICON_COLS + display_width(&elapsed) + 1 + 2 + display_width(&total_label) + 2;
     let bar = progress_bar(app.elapsed, total, width.saturating_sub(fixed));
-    Line::from(vec![
-        Span::styled(format!("  {}  ", icon), theme::accent()),
+    let mut spans = vec![
+        Span::styled(format!("  {}  ", icon), theme.accent()),
         Span::raw(elapsed),
         Span::raw(" "),
-        Span::styled(bar, theme::accent()),
-        Span::raw("  "),
-        Span::styled(total_label, theme::dim()),
-    ])
+    ];
+    spans.extend(bar_spans(
+        bar,
+        theme.progress_filled(),
+        theme.progress_empty(),
+    ));
+    spans.push(Span::raw("  "));
+    spans.push(Span::styled(total_label, theme.dim()));
+    Line::from(spans)
 }
 
 fn volume_line(app: &App, width: usize) -> Line<'static> {
+    let theme = app.theme;
     let segments = width
         .saturating_sub(VOLUME_ROW_FIXED)
         .clamp(4, MAX_VOLUME_SEGMENTS);
     let mpris = if app.mpris_connected {
-        Span::styled("●", theme::ok())
+        Span::styled("●", theme.ok())
     } else {
-        Span::styled("○", theme::dim())
+        Span::styled("○", theme.dim())
     };
-    Line::from(vec![
-        Span::styled("  Vol ", theme::dim()),
-        Span::styled(volume_bar(app.volume, segments), theme::accent()),
-        Span::raw(format!(" {:<4}", volume_percent(app.volume))),
-        Span::styled(
-            format!("  Shuffle {:<3}", if app.shuffle { "ON" } else { "OFF" }),
-            theme::dim(),
-        ),
-        Span::styled("  MPRIS ", theme::dim()),
-        mpris,
-    ])
+    let mut spans = vec![Span::styled("  Vol ", theme.dim())];
+    spans.extend(bar_spans(
+        volume_bar(app.volume, segments),
+        theme.volume_filled(),
+        theme.volume_empty(),
+    ));
+    spans.push(Span::raw(format!(" {:<4}", volume_percent(app.volume))));
+    spans.push(Span::styled(
+        format!("  Shuffle {:<3}", if app.shuffle { "ON" } else { "OFF" }),
+        theme.dim(),
+    ));
+    spans.push(Span::styled("  MPRIS ", theme.dim()));
+    spans.push(mpris);
+    Line::from(spans)
 }
 
 fn status_line(app: &App, now: Instant, width: usize) -> Line<'static> {
+    let theme = app.theme;
     match app.status_line(now) {
         Some((text, kind)) => {
             let style = match kind {
-                StatusKind::Info => ratatui::style::Style::default(),
-                StatusKind::Error => theme::error(),
+                StatusKind::Info => theme.status(),
+                StatusKind::Error => theme.error(),
             };
             Line::from(Span::styled(
                 format!("  {}", truncate_to_width(&text, width.saturating_sub(3))),
@@ -574,37 +595,52 @@ const SEARCH_HELP: [&[(&str, &str)]; 2] = [
     &[("Enter", ""), ("Esc", "")],
 ];
 
-fn help_spans(items: &[(&str, &str)]) -> Vec<Span<'static>> {
+/// Splits a progress or volume bar into its filled part (up to and including
+/// the `╸` head) and its empty part (`─` / `▯`) and styles each.
+fn bar_spans(bar: String, filled: Style, empty: Style) -> Vec<Span<'static>> {
+    let split = bar.find(['─', '▯']).unwrap_or(bar.len());
+    let (done, rest) = bar.split_at(split);
+    let mut spans = Vec::with_capacity(2);
+    if !done.is_empty() {
+        spans.push(Span::styled(done.to_string(), filled));
+    }
+    if !rest.is_empty() {
+        spans.push(Span::styled(rest.to_string(), empty));
+    }
+    spans
+}
+
+fn help_spans(theme: &Theme, items: &[(&str, &str)]) -> Vec<Span<'static>> {
     let mut spans = vec![Span::raw("  ")];
     for (i, (key, label)) in items.iter().enumerate() {
         if i > 0 {
             spans.push(Span::raw(if label.is_empty() { " " } else { "  " }));
         }
-        spans.push(Span::styled(key.to_string(), theme::key()));
+        spans.push(Span::styled(key.to_string(), theme.key()));
         if !label.is_empty() {
-            spans.push(Span::styled(format!(" {}", label), theme::dim()));
+            spans.push(Span::styled(format!(" {}", label), theme.help_text()));
         }
     }
     spans
 }
 
 /// Help line of the compact view.
-fn help_line(width: usize) -> Line<'static> {
+fn help_line(theme: &Theme, width: usize) -> Line<'static> {
     let variants: [&[(&str, &str)]; 3] = [&HELP_FULL, &HELP_MEDIUM, &HELP_SHORT];
-    help_line_for(&variants, width)
+    help_line_for(theme, &variants, width)
 }
 
 /// Longest of `variants` (ordered long to short) that fits in `width`; the
 /// shortest one when none fits.
-fn help_line_for(variants: &[&[(&str, &str)]], width: usize) -> Line<'static> {
+fn help_line_for(theme: &Theme, variants: &[&[(&str, &str)]], width: usize) -> Line<'static> {
     for items in variants {
-        let line = Line::from(help_spans(items));
+        let line = Line::from(help_spans(theme, items));
         if line.width() <= width {
             return line;
         }
     }
     match variants.last() {
-        Some(items) => Line::from(help_spans(items)),
+        Some(items) => Line::from(help_spans(theme, items)),
         None => Line::default(),
     }
 }
@@ -613,7 +649,7 @@ fn help_line_for(variants: &[&[(&str, &str)]], width: usize) -> Line<'static> {
 mod tests {
     use super::*;
     use crate::tui::app::{Activity, EpisodeView};
-    use ratatui::{backend::TestBackend, Terminal};
+    use ratatui::{backend::TestBackend, style::Modifier, Terminal};
     use std::time::Duration;
 
     fn playing_app() -> App {
@@ -745,11 +781,15 @@ mod tests {
 
     #[test]
     fn help_line_adapts_to_width() {
-        assert!(help_line(100).to_string().contains("d download"));
-        let medium = help_line(70).to_string();
+        assert!(help_line(&Theme::default(), 100)
+            .to_string()
+            .contains("d download"));
+        let medium = help_line(&Theme::default(), 70).to_string();
         assert!(medium.contains("s shuffle") && !medium.contains("download"));
-        assert!(!help_line(30).to_string().contains("next"));
-        assert!(help_line(30).width() <= 30);
+        assert!(!help_line(&Theme::default(), 30)
+            .to_string()
+            .contains("next"));
+        assert!(help_line(&Theme::default(), 30).width() <= 30);
     }
 
     fn full_app() -> App {
@@ -926,30 +966,32 @@ mod tests {
     fn help_variants_stay_within_their_width_budgets() {
         // Compact: long form fits a 100-column terminal (98 inside the
         // border), medium fits 70 (68), short fits the 40-column minimum.
-        let long = help_line(98);
+        let long = help_line(&Theme::default(), 98);
         assert!(long.width() <= 98 && long.to_string().contains("w viz"));
         assert!(long.to_string().contains("d download"));
-        let medium = help_line(68);
+        let medium = help_line(&Theme::default(), 68);
         assert!(medium.width() <= 68 && !medium.to_string().contains("viz"));
-        let short = help_line(38);
+        let short = help_line(&Theme::default(), 38);
         assert!(short.width() <= 38 && short.to_string().contains(" w "));
         // Full view: long form fits 110 columns (108 inside the border), the
         // short one fits the 64-column minimum (62).
-        let long = help_line_for(&LIST_HELP, 108);
+        let long = help_line_for(&Theme::default(), &LIST_HELP, 108);
         assert!(long.width() <= 108 && long.to_string().contains("w viz"));
-        assert!(help_line_for(&LIST_HELP, 62).width() <= 62);
-        assert!(help_line_for(&LIST_HELP, 22).to_string().contains(" w "));
+        assert!(help_line_for(&Theme::default(), &LIST_HELP, 62).width() <= 62);
+        assert!(help_line_for(&Theme::default(), &LIST_HELP, 22)
+            .to_string()
+            .contains(" w "));
     }
 
     #[test]
     fn full_help_line_adapts_to_width() {
-        assert!(help_line_for(&LIST_HELP, 110)
+        assert!(help_line_for(&Theme::default(), &LIST_HELP, 110)
             .to_string()
             .contains("d download"));
-        let medium = help_line_for(&LIST_HELP, 70).to_string();
+        let medium = help_line_for(&Theme::default(), &LIST_HELP, 70).to_string();
         assert!(medium.contains("Enter play") && !medium.contains("download"));
-        assert!(help_line_for(&LIST_HELP, 30).width() <= 30);
-        assert!(help_line_for(&SEARCH_HELP, 70)
+        assert!(help_line_for(&Theme::default(), &LIST_HELP, 30).width() <= 30);
+        assert!(help_line_for(&Theme::default(), &SEARCH_HELP, 70)
             .to_string()
             .contains("Esc cancelar"));
     }
@@ -1165,5 +1207,80 @@ mod tests {
                 }
             }
         }
+    }
+
+    fn draw_buffer(app: &App, w: u16, h: u16) -> ratatui::buffer::Buffer {
+        let mut app = app.clone();
+        let mut terminal = Terminal::new(TestBackend::new(w, h)).expect("terminal");
+        terminal
+            .draw(|f| draw(f, &mut app, Instant::now()))
+            .expect("draw");
+        terminal.backend().buffer().clone()
+    }
+
+    #[test]
+    fn non_reset_background_fills_the_whole_frame() {
+        use ratatui::style::Color;
+        let mut app = full_app();
+        app.theme = Theme::preset("nord").expect("preset");
+        let buf = draw_buffer(&app, 110, 30);
+        for (x, y) in [(0, 0), (109, 29), (55, 15), (3, 20), (109, 0)] {
+            assert_eq!(buf[(x, y)].bg, app.theme.background, "({x},{y})");
+        }
+        // Blank cells keep the base foreground.
+        let base_blanks = (0..30u16)
+            .flat_map(|y| (0..110u16).map(move |x| (x, y)))
+            .filter(|&(x, y)| buf[(x, y)].symbol() == " " && buf[(x, y)].fg == app.theme.foreground)
+            .count();
+        assert!(base_blanks > 500, "{base_blanks}");
+        // The too-small message is drawn over the fill too.
+        let small = draw_buffer(&app, 20, 5);
+        assert_eq!(small[(19, 4)].bg, app.theme.background);
+        assert_ne!(app.theme.background, Color::Reset);
+    }
+
+    #[test]
+    fn reset_background_paints_nothing() {
+        use ratatui::style::Color;
+        let mut app = full_app();
+        app.theme = Theme::default();
+        let buf = draw_buffer(&app, 110, 30);
+        for y in 0..30 {
+            for x in 0..110 {
+                assert_eq!(buf[(x, y)].bg, Color::Reset, "({x},{y})");
+            }
+        }
+    }
+
+    #[test]
+    fn theme_colors_reach_borders_list_and_bars() {
+        let mut app = full_app();
+        app.theme = Theme::preset("dracula").expect("preset");
+        let t = app.theme;
+        let buf = draw_buffer(&app, 110, 30);
+        assert_eq!(buf[(0, 5)].fg, t.border);
+        // Selection uses explicit colors instead of reversed video.
+        let sel_row = (0..30u16)
+            .find(|&y| buf[(4, y)].bg == t.selection_bg && buf[(4, y)].fg == t.selection_fg)
+            .expect("a selected row");
+        assert!(!buf[(4, sel_row)].modifier.contains(Modifier::REVERSED));
+    }
+
+    #[test]
+    fn bar_spans_split_filled_and_empty_parts() {
+        let (f, e) = (
+            Style::default().add_modifier(Modifier::BOLD),
+            Style::default().add_modifier(Modifier::DIM),
+        );
+        let spans = bar_spans("━━╸───".to_string(), f, e);
+        assert_eq!(spans.len(), 2);
+        assert_eq!(spans[0].content, "━━╸");
+        assert_eq!(spans[0].style, f);
+        assert_eq!(spans[1].content, "───");
+        assert_eq!(spans[1].style, e);
+        assert_eq!(bar_spans("▮▮▯▯".to_string(), f, e).len(), 2);
+        assert_eq!(bar_spans("━━━━".to_string(), f, e).len(), 1);
+        assert_eq!(bar_spans("▯▯".to_string(), f, e)[0].style, e);
+        assert!(bar_spans(String::new(), f, e).is_empty());
     }
 }

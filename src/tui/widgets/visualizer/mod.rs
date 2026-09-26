@@ -7,7 +7,10 @@
 //! - non-finite values count as 0 and everything is clamped to `0..=1`
 //!   (`-1..=1` for the waveform);
 //! - only single-width characters are used and no background color is set;
-//!   the look comes from the theme accent plus bold/dim modifiers.
+//!   the look comes from the viz roles of the [`Theme`] plus bold/dim modifiers.
+//!
+//! Widgets take the whole `&Theme` (it is `Copy` and cheap) instead of a
+//! separate palette struct, and only ask it for styles, never for `Color`s.
 
 mod bars;
 mod vu;
@@ -20,7 +23,7 @@ use ratatui::widgets::Widget;
 
 use crate::audio_tap::Levels;
 use crate::operations::spectrum::SpectrumAnalyzer;
-use crate::tui::theme;
+use crate::tui::theme::Theme;
 
 /// Eighth-height blocks, index `n - 1` fills `n/8` of a cell from the bottom.
 pub(super) const BLOCKS: [char; 8] = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
@@ -162,18 +165,24 @@ pub fn bands_wanted(style: VisualStyle, area_width: u16) -> usize {
 }
 
 /// Draws `style` into `area` of `buf`.
-pub fn render(style: VisualStyle, data: &VisualizerData, area: Rect, buf: &mut Buffer) {
+pub fn render(
+    style: VisualStyle,
+    data: &VisualizerData,
+    theme: &Theme,
+    area: Rect,
+    buf: &mut Buffer,
+) {
     let area = area.intersection(buf.area);
     if area.width == 0 || area.height == 0 {
         return;
     }
     match style {
-        VisualStyle::Bars => bars::render_bars(data, area, buf),
-        VisualStyle::Mirror => bars::render_mirror(data, area, buf),
-        VisualStyle::Dots => bars::render_dots(data, area, buf),
-        VisualStyle::Area => bars::render_area(data, area, buf),
-        VisualStyle::Wave => wave::render_wave(data, area, buf),
-        VisualStyle::Vu => vu::render_vu(data, area, buf),
+        VisualStyle::Bars => bars::render_bars(data, theme, area, buf),
+        VisualStyle::Mirror => bars::render_mirror(data, theme, area, buf),
+        VisualStyle::Dots => bars::render_dots(data, theme, area, buf),
+        VisualStyle::Area => bars::render_area(data, theme, area, buf),
+        VisualStyle::Wave => wave::render_wave(data, theme, area, buf),
+        VisualStyle::Vu => vu::render_vu(data, theme, area, buf),
     }
 }
 
@@ -183,11 +192,13 @@ pub struct Visualizer<'a> {
     pub style: VisualStyle,
     /// Data to draw.
     pub data: &'a VisualizerData,
+    /// Colors to draw with.
+    pub theme: &'a Theme,
 }
 
 impl Widget for Visualizer<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        render(self.style, self.data, area, buf);
+        render(self.style, self.data, self.theme, area, buf);
     }
 }
 
@@ -251,13 +262,16 @@ pub(super) fn put(buf: &mut Buffer, x: u16, y: u16, ch: char, style: Style) {
     }
 }
 
-/// Accent style; the upper third of a column is bold for a subtle intensity
-/// ramp that works on any terminal background.
-pub(super) fn ramp(frac: f32) -> Style {
-    if frac > 0.66 {
-        theme::accent().add_modifier(Modifier::BOLD)
+/// Gradient style of a column cell. Color follows `color_frac` (height of the
+/// cell center, `0` bottom to `1` top); the upper third of a column
+/// (`bold_frac > 0.66`) is bold for a subtle intensity ramp that works on any
+/// terminal background.
+pub(super) fn ramp(theme: &Theme, bold_frac: f32, color_frac: f32) -> Style {
+    let style = theme.level_style(color_frac);
+    if bold_frac > 0.66 {
+        style.add_modifier(Modifier::BOLD)
     } else {
-        theme::accent()
+        style
     }
 }
 

@@ -26,6 +26,7 @@ mpris-server = "0.9"
 async-std = { version = "1", features = ["attributes"] }
 async-channel = "2"
 futures = "0.3"
+toml = { version = "0.8", default-features = false, features = ["parse"] }
 
 [profile.release]
 opt-level = "z"

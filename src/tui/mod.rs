@@ -28,12 +28,14 @@ use crossterm::{
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
 
+use crate::config::Config;
 use crate::mpris::MprisController;
 use crate::operations::favorites::Favorites;
 use crate::player::Player;
 
 use app::{App, LayoutPref};
 use session::{Flow, Session};
+use theme::Theme;
 use viz::VizEngine;
 
 pub use session::PlayOptions;
@@ -120,6 +122,8 @@ fn event_loop(
 ) -> Result<()> {
     let (tx, rx) = mpsc::channel();
     let mut app = App::new(mpris.is_some());
+    // Loaded once; a broken config or theme degrades to the default look.
+    app.theme = Theme::resolve(&Config::load().theme.active);
     if options.compact {
         app.layout_pref = LayoutPref::Compact;
     }

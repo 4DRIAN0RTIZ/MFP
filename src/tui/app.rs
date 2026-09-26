@@ -7,6 +7,7 @@ use crate::operations::downloads::DownloadEvent;
 use crate::player::PlayerStage;
 
 use super::list::{filter_indices, move_selection, scroll_offset, ListMove};
+use super::theme::Theme;
 use super::widgets::visualizer::{VisualStyle, VisualizerData};
 
 /// How long a transient status message stays visible.
@@ -147,6 +148,8 @@ pub struct App {
     pub viz_data: VisualizerData,
     /// Size of the visualizer area drawn last frame; `(0, 0)` when none.
     viz_size: (u16, u16),
+    /// Color theme, loaded once at start.
+    pub theme: Theme,
 }
 
 impl App {
@@ -178,6 +181,7 @@ impl App {
             viz_style: VisualStyle::default(),
             viz_data: VisualizerData::default(),
             viz_size: (0, 0),
+            theme: Theme::default(),
         }
     }
 

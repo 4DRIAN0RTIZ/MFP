@@ -11,7 +11,7 @@ fn data_bands(bands: Vec<f32>) -> VisualizerData {
 fn draw(style: VisualStyle, data: &VisualizerData, w: u16, h: u16) -> Buffer {
     let area = Rect::new(0, 0, w, h);
     let mut buf = Buffer::empty(area);
-    render(style, data, area, &mut buf);
+    render(style, data, &Theme::default(), area, &mut buf);
     buf
 }
 
@@ -340,12 +340,23 @@ fn every_style_survives_degenerate_areas_and_data() {
         for data in &datas {
             for rect in rects {
                 let mut buf = Buffer::empty(Rect::new(0, 0, 500, 200));
-                render(style, data, rect, &mut buf);
-                Visualizer { style, data }.render(rect, &mut buf);
+                render(style, data, &Theme::default(), rect, &mut buf);
+                Visualizer {
+                    style,
+                    data,
+                    theme: &Theme::default(),
+                }
+                .render(rect, &mut buf);
             }
             // Zero-sized buffer.
             let mut buf = Buffer::empty(Rect::new(0, 0, 0, 0));
-            render(style, data, Rect::new(0, 0, 10, 10), &mut buf);
+            render(
+                style,
+                data,
+                &Theme::default(),
+                Rect::new(0, 0, 10, 10),
+                &mut buf,
+            );
         }
     }
 }
@@ -381,7 +392,13 @@ fn drawing_stays_inside_the_area() {
     let data = data_bands(vec![1.0; 16]);
     for style in VisualStyle::ALL {
         let mut buf = Buffer::empty(Rect::new(0, 0, 20, 10));
-        render(style, &data, Rect::new(4, 3, 8, 4), &mut buf);
+        render(
+            style,
+            &data,
+            &Theme::default(),
+            Rect::new(4, 3, 8, 4),
+            &mut buf,
+        );
         for y in 0..10 {
             for x in 0..20 {
                 let inside = (4..12).contains(&x) && (3..7).contains(&y);
@@ -508,4 +525,149 @@ fn preview_all_styles() {
             grid(&draw(style, &data, 60, 10))
         );
     }
+}
+
+fn fg_of(buf: &Buffer, x: u16, y: u16) -> ratatui::style::Color {
+    buf[(x, y)].fg
+}
+
+fn draw_with(theme: &Theme, style: VisualStyle, data: &VisualizerData, w: u16, h: u16) -> Buffer {
+    let area = Rect::new(0, 0, w, h);
+    let mut buf = Buffer::empty(area);
+    render(style, data, theme, area, &mut buf);
+    buf
+}
+
+#[test]
+fn vu_zone_thresholds() {
+    use crate::tui::theme::VuZone;
+    assert_eq!(vu::vu_zone(0.0), VuZone::Ok);
+    assert_eq!(vu::vu_zone(0.6), VuZone::Ok);
+    assert_eq!(vu::vu_zone(0.61), VuZone::Warn);
+    assert_eq!(vu::vu_zone(0.85), VuZone::Warn);
+    assert_eq!(vu::vu_zone(0.86), VuZone::Clip);
+    assert_eq!(vu::vu_zone(1.0), VuZone::Clip);
+}
+
+#[test]
+fn bars_follow_the_gradient_from_bottom_to_top() {
+    let theme = Theme::preset("nord").unwrap();
+    let buf = draw_with(&theme, VisualStyle::Bars, &data_bands(vec![1.0]), 1, 6);
+    let colors: Vec<_> = (0..6).map(|y| fg_of(&buf, 0, 5 - y)).collect();
+    assert_eq!(colors[0], theme.level_color(0.5 / 6.0));
+    assert_eq!(colors[5], theme.level_color(5.5 / 6.0));
+    assert_ne!(colors[0], colors[5]);
+    // Rgb stops interpolate: no two neighbours jump over the middle stop.
+    assert!(colors.windows(2).all(|w| w[0] != w[1]));
+}
+
+#[test]
+fn non_rgb_gradient_steps_in_thirds() {
+    let theme = Theme::preset("high-contrast").unwrap();
+    let buf = draw_with(&theme, VisualStyle::Bars, &data_bands(vec![1.0]), 1, 6);
+    let colors: Vec<_> = (0..6).map(|y| fg_of(&buf, 0, 5 - y)).collect();
+    assert_eq!(colors[0], theme.viz_low);
+    assert_eq!(colors[1], theme.viz_low);
+    assert_eq!(colors[2], theme.viz_mid);
+    assert_eq!(colors[3], theme.viz_mid);
+    assert_eq!(colors[4], theme.viz_high);
+    assert_eq!(colors[5], theme.viz_high);
+}
+
+#[test]
+fn two_presets_color_the_same_data_differently() {
+    let data = VisualizerData {
+        bands: ramp_data(16),
+        peaks: vec![1.0; 16],
+        waveform: (0..64).map(|i| (i as f32 / 5.0).sin()).collect(),
+        level_l: 0.9,
+        level_r: 0.5,
+        hold_l: 1.0,
+        hold_r: 0.7,
+    };
+    let (a, b) = (
+        Theme::preset("nord").unwrap(),
+        Theme::preset("dracula").unwrap(),
+    );
+    for style in VisualStyle::ALL {
+        let x = draw_with(&a, style, &data, 24, 6);
+        let y = draw_with(&b, style, &data, 24, 6);
+        assert_eq!(grid(&x), grid(&y), "{style:?}: same glyphs");
+        assert_ne!(x, y, "{style:?}: different colors");
+    }
+}
+
+#[test]
+fn default_theme_colors_every_part_with_the_single_accent() {
+    let theme = Theme::default();
+    let data = VisualizerData {
+        bands: ramp_data(8),
+        peaks: vec![1.0; 8],
+        waveform: (0..32).map(|i| (i as f32 / 3.0).sin()).collect(),
+        level_l: 1.0,
+        level_r: 1.0,
+        hold_l: 1.0,
+        hold_r: 1.0,
+    };
+    for style in VisualStyle::ALL {
+        let buf = draw_with(&theme, style, &data, 16, 6);
+        for y in 0..6 {
+            for x in 0..16 {
+                let c = &buf[(x, y)];
+                assert!(
+                    c.symbol() == " "
+                        || matches!(
+                            c.fg,
+                            ratatui::style::Color::Blue | ratatui::style::Color::Reset
+                        ),
+                    "{style:?} ({x},{y}) {:?}",
+                    c.fg
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn vu_segments_use_zone_colors_and_the_hold_color() {
+    let theme = Theme::preset("dracula").unwrap();
+    let data = VisualizerData {
+        level_l: 1.0,
+        hold_l: 1.0,
+        level_r: 0.5,
+        hold_r: 0.9,
+        ..Default::default()
+    };
+    // Width 22 with labels: 20 segments starting at x = 2.
+    let buf = draw_with(&theme, VisualStyle::Vu, &data, 22, 2);
+    assert_eq!(fg_of(&buf, 2, 0), theme.viz_vu_ok);
+    assert_eq!(fg_of(&buf, 2 + 14, 0), theme.viz_vu_warn);
+    assert_eq!(fg_of(&buf, 21, 0), theme.viz_vu_clip);
+    // R meter: 10 filled, hold tick at segment 18.
+    assert_eq!(fg_of(&buf, 2, 1), theme.viz_vu_ok);
+    assert_eq!(fg_of(&buf, 2 + 17, 1), theme.viz_vu_hold);
+    assert!(buf[(2 + 17, 1)].modifier.contains(Modifier::BOLD));
+}
+
+#[test]
+fn dots_and_wave_use_their_own_roles() {
+    let theme = Theme::preset("gruvbox").unwrap();
+    let dots = draw_with(&theme, VisualStyle::Dots, &data_bands(vec![0.5]), 1, 10);
+    // Body dot is dim, head dot uses the gradient, peak marker uses viz_peak.
+    assert_eq!(fg_of(&dots, 0, 9), theme.viz_dim);
+    let peak_row = (0..10).find(|y| sym(&dots, 0, *y) == "▪").unwrap();
+    assert_eq!(fg_of(&dots, 0, peak_row), theme.viz_peak);
+    let data = VisualizerData {
+        waveform: vec![0.0; 16],
+        ..Default::default()
+    };
+    let wave = draw_with(&theme, VisualStyle::Wave, &data, 8, 3);
+    let lit: Vec<_> = (0..3)
+        .flat_map(|y| (0..8).map(move |x| (x, y)))
+        .filter(|&(x, y)| is_braille(&sym(&wave, x, y)))
+        .collect();
+    assert!(!lit.is_empty());
+    assert!(lit
+        .iter()
+        .all(|&(x, y)| fg_of(&wave, x, y) == theme.viz_wave));
 }
