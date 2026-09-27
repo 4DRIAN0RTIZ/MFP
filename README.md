@@ -4,7 +4,7 @@ Lightweight Rust terminal player for [musicforprogramming.net](https://musicforp
 It streams the episodes directly, shows a live audio visualizer, supports
 color themes, and can be controlled with your desktop media keys (MPRIS).
 
-**[→ Full documentation (keys, visualizer, themes, configuration)](https://4DRIAN0RTIZ.github.io/mfp/)**
+**[→ Full documentation (keys, visualizer, themes, configuration)](https://mfp.cuevaneander.tech)**
 
 ![mfp](./mfp.png)
 
@@ -61,7 +61,7 @@ The player draws a live audio visualizer in six styles (`bars`, `mirror`,
 `solarized`, `high-contrast`, `gruvbox`, `nord`, `dracula`). Both are chosen in
 the optional `~/.config/mfp/config.toml`, which mfp only reads and never
 writes. Custom themes, every key and all the details are documented on the
-[landing page](https://4DRIAN0RTIZ.github.io/mfp/).
+[landing page](https://mfp.cuevaneander.tech).
 
 ## License
 
