@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Documentation
+
+- Point landing page links to mfp.cuevaneander.tech ([a8ecc90](https://github.com/4DRIAN0RTIZ/MFP/commit/a8ecc904a4488c741f231e1777bf738cce70f938))
+
+### Features
+
+- Add English and Spanish i18n to the landing page ([9b8f748](https://github.com/4DRIAN0RTIZ/MFP/commit/9b8f7480aa4b8856324bc16a4786c72f6e867cca))
+- Redesign the landing page with an interactive demo, themes, Open Graph and release notes ([87ca9d4](https://github.com/4DRIAN0RTIZ/MFP/commit/87ca9d49ab453a1405bf3bd2be03f7ae93b090f4))
+
 ## [0.3.0] - 2026-09-26
 
 ### Build
