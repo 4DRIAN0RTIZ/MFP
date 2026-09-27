@@ -2,7 +2,11 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased]
+## [0.4.0] - 2026-09-27
+
+### Chore
+
+- Update CHANGELOG.md and docs/changelog.json [skip ci] ([b018cc1](https://github.com/4DRIAN0RTIZ/MFP/commit/b018cc1406c0e2dd1303d29ec1303e96c1ef5ba8))
 
 ### Documentation
 
