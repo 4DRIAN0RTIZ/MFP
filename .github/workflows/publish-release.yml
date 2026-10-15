@@ -105,7 +105,7 @@ jobs:
             --title "${{ needs.bump.outputs.version }}" \
             --notes "${{ steps.git-cliff.outputs.content }}"
 
-  sync-develop:
+  sync-dev:
     needs: bump
     if: needs.bump.outputs.released == 'true'
     runs-on: ubuntu-latest
@@ -115,6 +115,6 @@ jobs:
           fetch-depth: 0
           ref: main
 
-      - name: Fast-forward develop to main
+      - name: Fast-forward dev to main
         run: |
-          git push origin HEAD:develop
+          git push origin HEAD:dev

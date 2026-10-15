@@ -2,7 +2,7 @@ name: Update unreleased changelog
 
 on:
   push:
-    branches: [develop]
+    branches: [dev]
     paths-ignore:
       - CHANGELOG.md
       - docs/changelog.json
