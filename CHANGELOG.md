@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### CI
+
+- Rename develop branch to dev ([9eb365e](https://github.com/4DRIAN0RTIZ/MFP/commit/9eb365e775c9da554478fa1820483e0216744fcc))
+
 ## [0.4.0] - 2026-09-27
 
 ### Chore
